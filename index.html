@@ -82,13 +82,35 @@
             <h2>Student Profile</h2>
 
             <p>
-                Enter your name and choose your favorite avatar.
+                Enter your details and choose your favorite avatar.
             </p>
 
-            <input
-                type="text"
-                id="studentName"
-                placeholder="Enter your name">
+            <input type="hidden" id="studentName">
+
+            <label for="studentLastName">Last Name</label>
+            <input type="text" id="studentLastName" placeholder="Last Name" autocomplete="family-name">
+
+            <label for="studentFirstName">First Name</label>
+            <input type="text" id="studentFirstName" placeholder="First Name" autocomplete="given-name">
+
+            <label for="studentMiddleName">Middle Name</label>
+            <div class="profile-middle-name">
+                <input type="text" id="studentMiddleName" placeholder="Middle Name" autocomplete="additional-name">
+                <label class="profile-none-option">
+                    <input type="checkbox" id="studentNoMiddleName">
+                    None
+                </label>
+            </div>
+
+            <label for="studentAge">Age</label>
+            <input type="number" id="studentAge" placeholder="Age" min="1" max="120" inputmode="numeric">
+
+            <label for="studentGender">Gender</label>
+            <select id="studentGender">
+                <option value="">Select gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+            </select>
 
             <h3>Select Avatar</h3>
 
@@ -189,21 +211,39 @@
 
         <div class="tdash">
 
-            <header class="tdash-header">
-                <div class="tdash-header-copy">
-                    <p class="tdash-eyebrow">QuizLand Teacher</p>
-                    <h2>Classroom Dashboard</h2>
-                    <p class="tdash-welcome">Welcome back, <span id="teacherNameDisplay">Teacher</span>.</p>
+            <aside id="teacherSidebar" class="teacher-sidebar">
+                <div class="teacher-sidebar-brand">
+                    <span class="teacher-sidebar-logo">Q</span>
+                    <div class="teacher-sidebar-brand-copy">
+                        <strong>QuizLand</strong>
+                        <span>Teacher portal</span>
+                    </div>
                 </div>
-                <div class="tdash-header-actions">
-                    <button id="teacherDashboardRefreshBtn" class="tdash-btn tdash-btn--refresh" type="button">Refresh</button>
-                    <button id="teacherCustomizeBtn" class="tdash-btn tdash-btn--soft" type="button">Add Quiz</button>
-                    <button id="teacherAddLessonBtn" class="tdash-btn tdash-btn--solid" type="button">Add Lesson</button>
-                    <button id="teacherDashboardPrintBtn" class="tdash-btn tdash-btn--soft" type="button">Print</button>
-                    <button id="teacherDashboardHomeBtn" class="tdash-btn tdash-btn--ghost" type="button">Home</button>
+                <nav class="teacher-sidebar-nav" aria-label="Teacher dashboard actions">
+                    <button id="teacherDashboardRefreshBtn" class="teacher-sidebar-btn teacher-sidebar-btn--refresh" type="button"><span class="teacher-sidebar-icon">↻</span><span class="teacher-sidebar-label">Refresh</span></button>
+                    <button id="teacherCustomizeBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">✦</span><span class="teacher-sidebar-label">Add Quiz</span></button>
+                    <button id="teacherAddLessonBtn" class="teacher-sidebar-btn teacher-sidebar-btn--accent" type="button"><span class="teacher-sidebar-icon">＋</span><span class="teacher-sidebar-label">Add Lesson</span></button>
+                    <button id="teacherDashboardPrintBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">▣</span><span class="teacher-sidebar-label">Print</span></button>
+                    <button id="teacherDashboardHomeBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">⌂</span><span class="teacher-sidebar-label">Home</span></button>
+                </nav>
+                <div class="teacher-sidebar-account">
+                    <div class="teacher-sidebar-user">
+                        <span class="teacher-sidebar-avatar">★</span>
+                        <span class="teacher-sidebar-label"><strong id="teacherSidebarName">Teacher</strong><small>Signed in</small></span>
+                    </div>
                     <button id="teacherLogoutBtn" class="tdash-btn tdash-btn--solid" type="button">Logout</button>
                 </div>
-            </header>
+            </aside>
+
+            <main class="tdash-main">
+                <button id="teacherSidebarToggle" class="teacher-sidebar-toggle" type="button" aria-controls="teacherSidebar" aria-expanded="true" aria-label="Hide sidebar" title="Hide sidebar">☰</button>
+                <header class="tdash-header">
+                    <div class="tdash-header-copy">
+                        <p class="tdash-eyebrow">QuizLand Teacher</p>
+                        <h2>Classroom Dashboard</h2>
+                        <p class="tdash-welcome">Welcome back, <span id="teacherNameDisplay">Teacher</span>.</p>
+                    </div>
+                </header>
 
             <div class="tdash-charts">
                 <section class="tdash-panel">
@@ -249,6 +289,12 @@
                         <option value="surname">Surname A-Z</option>
                         <option value="stars">Highest stars</option>
                     </select>
+                    <label class="teacher-student-sort-label" for="teacherStudentGenderFilter">Show gender</label>
+                    <select id="teacherStudentGenderFilter" class="teacher-student-sort">
+                        <option value="all">All students</option>
+                        <option value="male">Male students</option>
+                        <option value="female">Female students</option>
+                    </select>
                 </div>
                 <div class="teacher-progress-table">
                     <table id="teacherStudentProgressTable">
@@ -256,6 +302,8 @@
                             <tr>
                                 <th>Name</th>
                                 <th>Avatar</th>
+                                <th>Age</th>
+                                <th>Gender</th>
                                 <th>Progress</th>
                                 <th>Latest Activity Score</th>
                                 <th>Stars</th>
@@ -293,6 +341,29 @@
                 </div>
             </section>
 
+            <section class="tdash-panel tdash-panel--wide" id="activityLogPanel">
+                <div class="tdash-panel-head">
+                    <h3>Activity Log</h3>
+                    <p id="activityLogSubtitle">Select a student to view recent learning activity.</p>
+                </div>
+                <div class="quiz-history-table-wrap">
+                    <table id="teacherActivityLogTable">
+                        <thead>
+                            <tr>
+                                <th>Date &amp; time</th>
+                                <th>Activity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="quiz-history-empty">
+                                <td colspan="2">No student selected yet.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            </main>
         </div>
 
         <div id="teacherPrintModal" class="teacher-print-modal" hidden>
@@ -900,3 +971,4 @@
  <script src="script.js"></script>
 
 </html>
+<!-- 903 -->
