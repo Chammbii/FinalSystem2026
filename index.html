@@ -34,25 +34,42 @@
 
 <body>  
 
+    <div id="loadingScreen" class="loading-screen" role="status" aria-live="polite">
+        <div class="loading-card">
+            <div class="loading-logo">Q</div>
+            <h1>QuizLand</h1>
+            <p>Getting your learning adventure ready...</p>
+            <div class="loading-spinner" aria-hidden="true"></div>
+            <div class="loading-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+        </div>
+    </div>
+
     <!-- ===================================================== -->
     <!-- HOME SCREEN -->
     <!-- ===================================================== -->
 
     <section id="homeScreen" class="screen active">
 
+        <div class="home-orbit home-orbit--one" aria-hidden="true"></div>
+        <div class="home-orbit home-orbit--two" aria-hidden="true"></div>
+        <div class="home-bubble home-bubble--one" aria-hidden="true"></div>
+        <div class="home-bubble home-bubble--two" aria-hidden="true"></div>
+        <div class="home-bubble home-bubble--three" aria-hidden="true"></div>
+        <div class="home-sparkles" aria-hidden="true"><span>✦</span><span>✧</span><span>✦</span><span>✧</span></div>
+
         <div class="home-container">
 
-
-
+            <div class="home-badge"><span>★</span> A happy place to learn</div>
             <p class="subtitle">
-                Learn • Play • Earn Stars 
+                Learn <span>•</span> Play <span>•</span> Earn Stars
             </p>
 
             <div class="button-group">
 
                 <button id="startBtn" class="main-btn">
                     <i class="fa-solid fa-play"></i>
-                    Start Learning
+                    <span>Start Learning</span>
+                    <small>Begin your fun adventure</small>
                 </button>
 
             </div>
@@ -972,3 +989,5 @@
 
 </html>
 <!-- 903 -->
+ <!-- 985 -->
+  <!-- 993 -->
