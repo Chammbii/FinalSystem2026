@@ -67,8 +67,11 @@ const teacherStarsChart = document.getElementById("teacherStarsChart");
 const teacherDailyStarsChart = document.getElementById("teacherDailyStarsChart");
 const teacherQuizHistoryTable = document.getElementById("teacherQuizHistoryTable");
 const quizHistorySubtitle = document.getElementById("quizHistorySubtitle");
+const teacherActivityLogTable = document.getElementById("teacherActivityLogTable");
+const activityLogSubtitle = document.getElementById("activityLogSubtitle");
 const teacherStudentTrackerCount = document.getElementById("teacherStudentTrackerCount");
 const teacherStudentSort = document.getElementById("teacherStudentSort");
+const teacherStudentGenderFilter = document.getElementById("teacherStudentGenderFilter");
 let selectedHistoryStudent = null;
 let sessionStarsGained = 0;
 
@@ -98,6 +101,7 @@ const bgAudio = bgMusicElement || null;
 
 // ---------- STUDENT ----------
 const studentName = document.getElementById("studentName");
+const studentGender = document.getElementById("studentGender");
 
 // ---------- AVATARS ----------
 const avatars = document.querySelectorAll(".avatar-card");
@@ -896,6 +900,7 @@ function updateCurrentStudentRecord() {
     if (!student) return;
 
     const avatarIndex = Number(localStorage.getItem("avatar")) || 1;
+    const gender = localStorage.getItem("studentGender") || "";
     const completedLessons = Number(localStorage.getItem(getCurrentStudentProgressKey("completedLessons"))) || 0;
     const lessonProgress = JSON.parse(localStorage.getItem(getCurrentStudentProgressKey("lessonProgress"))) || {};
     const categoriesDone = Object.keys(lessonProgress).length;
@@ -927,6 +932,7 @@ function updateCurrentStudentRecord() {
         record = {
             name: student,
             avatar: avatarIndex,
+            gender,
             completedLessons,
             categoriesDone,
             progressPercent,
@@ -945,6 +951,7 @@ function updateCurrentStudentRecord() {
             progressHistory.push({ progressPercent, updatedAt: now });
         }
         record.avatar = avatarIndex;
+        record.gender = gender;
         record.completedLessons = completedLessons;
         record.categoriesDone = categoriesDone;
         record.progressPercent = progressPercent;
@@ -973,6 +980,36 @@ function appendQuizHistoryEntry(student, entry) {
     const history = getStudentQuizHistory(student);
     history.unshift(entry);
     saveStudentQuizHistory(student, history);
+}
+
+function getActivityLogKey(student) {
+    return getNamespacedKey(`activityLog_${encodeURIComponent(student)}`);
+}
+
+function getStudentActivityLog(student) {
+    const raw = localStorage.getItem(getActivityLogKey(student));
+    try {
+        const activities = raw ? JSON.parse(raw) : [];
+        return Array.isArray(activities) ? activities : [];
+    } catch (error) {
+        return [];
+    }
+}
+
+function saveStudentActivityLog(student, activities) {
+    localStorage.setItem(getActivityLogKey(student), JSON.stringify(activities.slice(0, 100)));
+}
+
+function recordStudentActivity(activity) {
+    const student = localStorage.getItem("studentName");
+    if (!student || !activity) return;
+
+    const activities = getStudentActivityLog(student);
+    activities.unshift({
+        date: Date.now(),
+        activity
+    });
+    saveStudentActivityLog(student, activities);
 }
 
 function formatQuizHistoryDate(timestamp) {
@@ -1247,11 +1284,58 @@ function renderQuizHistory(studentName) {
     });
 }
 
+function renderActivityLog(studentName) {
+    if (!teacherActivityLogTable) return;
+    const tbody = teacherActivityLogTable.querySelector("tbody");
+    tbody.innerHTML = "";
+
+    if (!studentName) {
+        if (activityLogSubtitle) {
+            activityLogSubtitle.textContent = "Select a student to view recent learning activity.";
+        }
+        tbody.innerHTML = '<tr class="quiz-history-empty"><td colspan="2">No student selected yet.</td></tr>';
+        return;
+    }
+
+    if (activityLogSubtitle) {
+        activityLogSubtitle.textContent = `Recent activity for ${studentName}`;
+    }
+
+    const activities = getStudentActivityLog(studentName);
+    if (!activities.length) {
+        tbody.innerHTML = `<tr class="quiz-history-empty"><td colspan="2">No activity recorded yet for ${studentName}.</td></tr>`;
+        return;
+    }
+
+    activities.forEach((entry, index) => {
+        const row = document.createElement("tr");
+        if (index === 0) row.classList.add("is-latest");
+
+        const dateCell = document.createElement("td");
+        dateCell.textContent = formatQuizHistoryDate(entry.date);
+        if (index === 0) {
+            const badge = document.createElement("span");
+            badge.className = "latest-history-badge";
+            badge.textContent = "Latest";
+            dateCell.appendChild(badge);
+        }
+
+        const activityCell = document.createElement("td");
+        activityCell.textContent = entry.activity || "Student activity";
+        row.appendChild(dateCell);
+        row.appendChild(activityCell);
+        tbody.appendChild(row);
+    });
+}
+
 function renderTeacherStudentProgress() {
     if (!teacherStudentProgressTable) return;
     const tbody = teacherStudentProgressTable.querySelector("tbody");
     tbody.innerHTML = "";
-    const records = getStudentRecords();
+    const genderFilter = teacherStudentGenderFilter?.value || "all";
+    const records = getStudentRecords().filter(record => (
+        genderFilter === "all" || record.gender === genderFilter
+    ));
     const totalCategories = Object.keys(lessons).length;
 
     if (teacherStudentTrackerCount) {
@@ -1274,8 +1358,12 @@ function renderTeacherStudentProgress() {
     renderTeacherNeedsInterpretation(records);
 
     if (!records.length) {
-        tbody.innerHTML = `<tr class="quiz-history-empty"><td colspan="6">No students tracked yet.</td></tr>`;
+        const emptyMessage = genderFilter === "all"
+            ? "No students tracked yet."
+            : `No ${genderFilter} students tracked yet.`;
+        tbody.innerHTML = `<tr class="quiz-history-empty"><td colspan="7">${emptyMessage}</td></tr>`;
         renderQuizHistory(null);
+        renderActivityLog(null);
         return;
     }
 
@@ -1294,6 +1382,11 @@ function renderTeacherStudentProgress() {
         img.alt = `Avatar ${record.avatar}`;
         img.className = "student-avatar-cell";
         avatarTd.appendChild(img);
+
+        const genderTd = document.createElement("td");
+        genderTd.textContent = record.gender
+            ? record.gender.charAt(0).toUpperCase() + record.gender.slice(1)
+            : "Not set";
 
         const progressTd = document.createElement("td");
         const progressHistory = Array.isArray(record.progressHistory) && record.progressHistory.length
@@ -1328,6 +1421,7 @@ function renderTeacherStudentProgress() {
             selectedHistoryStudent = record.name;
             renderTeacherStudentProgress();
             renderQuizHistory(record.name);
+            renderActivityLog(record.name);
             const panel = document.getElementById("quizHistoryPanel");
             if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
         });
@@ -1343,6 +1437,7 @@ function renderTeacherStudentProgress() {
             }
             renderTeacherStudentProgress();
             renderQuizHistory(selectedHistoryStudent);
+            renderActivityLog(selectedHistoryStudent);
             showNotification(`${record.name} has been removed.`);
         });
 
@@ -1352,6 +1447,7 @@ function renderTeacherStudentProgress() {
 
         row.appendChild(nameTd);
         row.appendChild(avatarTd);
+        row.appendChild(genderTd);
         row.appendChild(progressTd);
         row.appendChild(latestScoreTd);
         row.appendChild(starsTd);
@@ -1361,6 +1457,7 @@ function renderTeacherStudentProgress() {
 
     if (selectedHistoryStudent) {
         renderQuizHistory(selectedHistoryStudent);
+        renderActivityLog(selectedHistoryStudent);
     }
 }
 
@@ -1384,10 +1481,15 @@ if (teacherStudentSort) {
     teacherStudentSort.addEventListener("change", renderTeacherStudentProgress);
 }
 
+if (teacherStudentGenderFilter) {
+    teacherStudentGenderFilter.addEventListener("change", renderTeacherStudentProgress);
+}
+
 function removeStudentRecord(studentName) {
     const records = getStudentRecords().filter(record => record.name !== studentName);
     saveStudentRecords(records);
     localStorage.removeItem(getQuizHistoryKey(studentName));
+    localStorage.removeItem(getActivityLogKey(studentName));
 }
 
 function showTeacherDashboard(){
@@ -1417,7 +1519,17 @@ continueBtn.addEventListener("click", () => {
 
     }
 
+    const gender = studentGender.value;
+    if (!gender) {
+        const msg = "Please select a gender.";
+        showNotification(msg);
+        speakText(msg);
+        studentGender.focus();
+        return;
+    }
+
     localStorage.setItem("studentName", name);
+    localStorage.setItem("studentGender", gender);
 
     if (selectedAvatar === null) {
 
@@ -2979,6 +3091,8 @@ let selectedLanguage = 'en';
 function openLesson(category){
     currentCategory = category;
     currentLesson = 0;
+    const lessonTitle = translateLessonTitle(category);
+    recordStudentActivity(`Opened ${lessonTitle}`);
     openLessonContinue(category);
 }
 
@@ -3015,6 +3129,7 @@ function openCategoryQuiz(category) {
     if (!getCompletedLessonCategories()[category]) return;
     currentCategory = category;
     quizCategory = category;
+    recordStudentActivity(`Started ${translateLessonTitle(category)} quiz`);
     showScreen(quizScreen);
     initializeQuiz();
 }
@@ -4417,6 +4532,6 @@ window.addEventListener("load",()=>{
 // ======================================================
 
 
-
-
-// 
+// line 88 html
+// <label for="studentGender">Select Gender</label>
+// 4422 
