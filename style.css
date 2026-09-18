@@ -1765,6 +1765,25 @@ h1{
     }
 }
 
+@media screen and (orientation:portrait) and (max-width:900px){
+    #teacherDashboard.screen.active .tdash-main{
+        padding-top:78px;
+    }
+
+    #teacherDashboard.screen.active .tdash-charts{
+        grid-template-columns:1fr;
+    }
+
+    #teacherDashboard.screen.active .tdash-panel{
+        overflow-x:auto;
+    }
+
+    #teacherDashboard.screen.active .teacher-progress-table,
+    #teacherDashboard.screen.active .quiz-history-table-wrap{
+        min-width:720px;
+    }
+}
+
 .profile-container h2{
 
     color:#ff6b6b;
