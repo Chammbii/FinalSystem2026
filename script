@@ -6,29 +6,6 @@
 // SCRIPT.JS
 // ======================================================
 
-// ---------- STARTUP LOADING ----------
-const loadingScreen = document.getElementById("loadingScreen");
-let loadingScreenHidden = false;
-
-function hideLoadingScreen() {
-    if (!loadingScreen || loadingScreenHidden) return;
-
-    loadingScreenHidden = true;
-    loadingScreen.classList.add("loading-screen--hidden");
-    loadingScreen.addEventListener("transitionend", () => {
-        loadingScreen.remove();
-    }, { once: true });
-}
-
-if (document.readyState === "complete") {
-    window.requestAnimationFrame(hideLoadingScreen);
-} else {
-    window.addEventListener("load", hideLoadingScreen, { once: true });
-}
-
-// Keep a slow or failed external resource from leaving the app blocked.
-window.setTimeout(hideLoadingScreen, 5000);
-
 // ---------- HOME ----------
 const homeScreen = document.getElementById("homeScreen");
 const profileScreen = document.getElementById("profileScreen");
