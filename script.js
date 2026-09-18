@@ -31,7 +31,9 @@ const teacherFormSubtitle = document.getElementById("teacherFormSubtitle");
 const teacherSwitchText = document.getElementById("teacherSwitchText");
 const teacherSubmitBtn = document.getElementById("teacherSubmitBtn");
 const teacherDashboard = document.getElementById("teacherDashboard");
+const teacherSidebarToggle = document.getElementById("teacherSidebarToggle");
 const teacherNameDisplay = document.getElementById("teacherNameDisplay");
+const teacherSidebarName = document.getElementById("teacherSidebarName");
 const teacherLogoutBtn = document.getElementById("teacherLogoutBtn");
 const teacherDashboardHomeBtn = document.getElementById("teacherDashboardHomeBtn");
 const teacherDashboardRefreshBtn = document.getElementById("teacherDashboardRefreshBtn");
@@ -105,6 +107,34 @@ const bgMusicElement = document.getElementById("bgMusic");
 const popSound = document.getElementById("popSound");
 const bgAudio = bgMusicElement || null;
 
+function setTeacherSidebarCollapsed(collapsed) {
+    if (!teacherDashboard || !teacherSidebarToggle) return;
+
+    teacherDashboard.classList.toggle("teacher-sidebar-collapsed", collapsed);
+    teacherSidebarToggle.setAttribute("aria-expanded", String(!collapsed));
+    teacherSidebarToggle.setAttribute("aria-label", collapsed ? "Show sidebar" : "Hide sidebar");
+    teacherSidebarToggle.setAttribute("title", collapsed ? "Show sidebar" : "Hide sidebar");
+    teacherSidebarToggle.textContent = collapsed ? "☰" : "×";
+}
+
+if (teacherSidebarToggle) {
+    teacherSidebarToggle.addEventListener("click", () => {
+        const collapsed = !teacherDashboard.classList.contains("teacher-sidebar-collapsed");
+        setTeacherSidebarCollapsed(collapsed);
+    });
+}
+
+async function requestLandscapeMode() {
+    if (!window.matchMedia("(max-width: 900px)").matches || !screen.orientation?.lock) return;
+
+    try {
+        await screen.orientation.lock("landscape");
+    } catch (error) {
+        // Orientation locking is restricted by some Android browsers unless fullscreen is active.
+        console.warn("Landscape orientation could not be locked by this browser.", error);
+    }
+}
+
 // ---------- STUDENT ----------
 const studentName = document.getElementById("studentName");
 const studentLastName = document.getElementById("studentLastName");
@@ -157,6 +187,7 @@ function showScreen(screen) {
     hideAllScreens();
 
     screen.classList.add("active");
+    requestLandscapeMode();
     updateStudentHud();
     if (screen === menuScreen) updateQuizMenuButtons();
 
@@ -1511,7 +1542,11 @@ function removeStudentRecord(studentName) {
 
 function showTeacherDashboard(){
     showScreen(teacherDashboard);
+    setTeacherSidebarCollapsed(false);
     teacherNameDisplay.textContent = currentTeacherUsername;
+    if (teacherSidebarName) {
+        teacherSidebarName.textContent = currentTeacherUsername;
+    }
 
     renderTeacherStudentProgress();
     renderTeacherNotifications();
@@ -2154,6 +2189,15 @@ function updateBgMusic() {
     });
 }
 
+function startMusicAfterInteraction() {
+    updateBgMusic();
+    if (bgAudio && !bgAudio.paused) {
+        document.removeEventListener("pointerdown", startMusicAfterInteraction);
+        document.removeEventListener("keydown", startMusicAfterInteraction);
+        document.removeEventListener("touchstart", startMusicAfterInteraction);
+    }
+}
+
 if (bgMusicToggle) {
     bgMusicToggle.addEventListener("change", updateBgMusic);
 }
@@ -2352,10 +2396,9 @@ window.onload = () => {
     updateVolumeLabel(bgMusicVolume, bgMusicVolumeValue);
     updateVolumeLabel(sfxVolume, sfxVolumeValue);
     updateStudentHud();
-    document.addEventListener("click", () => {
-        updateBgMusic();
-        playPopSound();
-    }, { once: true });
+    document.addEventListener("pointerdown", startMusicAfterInteraction);
+    document.addEventListener("keydown", startMusicAfterInteraction);
+    document.addEventListener("touchstart", startMusicAfterInteraction);
 };
 
 // ======================================================
@@ -4661,7 +4704,7 @@ showProgress();
 function completedCategories(){
 
     const progress =
-        JSON.parse(
+        JSON.parse(     
             localStorage.getItem(getCurrentStudentProgressKey("lessonProgress"))
         ) || {};
 
