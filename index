@@ -34,16 +34,6 @@
 
 <body>  
 
-    <div id="loadingScreen" class="loading-screen" role="status" aria-live="polite">
-        <div class="loading-card">
-            <div class="loading-logo">Q</div>
-            <h1>QuizLand</h1>
-            <p>Getting your learning adventure ready...</p>
-            <div class="loading-spinner" aria-hidden="true"></div>
-            <div class="loading-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-        </div>
-    </div>
-
     <!-- ===================================================== -->
     <!-- HOME SCREEN -->
     <!-- ===================================================== -->
