@@ -90,6 +90,7 @@ const teacherTutorialSkipBtn = document.getElementById("teacherTutorialSkipBtn")
 const teacherTutorialDontShowAgain = document.getElementById("teacherTutorialDontShowAgain");
 let selectedHistoryStudent = null;
 let sessionStarsGained = 0;
+let studentProfileEditing = false;
 
 const TEACHER_TUTORIAL_DONT_SHOW_KEY = "quizlandTeacherTutorialDontShow";
 const teacherTutorialSteps = [
@@ -256,6 +257,18 @@ function hasStudentProfile() {
     return !!(localStorage.getItem("studentName") && localStorage.getItem("avatar") && localStorage.getItem("studentClassroomCode"));
 }
 
+function getStudentProfileSubmittedKey(name, classroomCode) {
+    return `quizlandProfileSubmitted_${encodeURIComponent(classroomCode)}_${encodeURIComponent(name)}`;
+}
+
+function hasSubmittedStudentProfile(name, classroomCode) {
+    return localStorage.getItem(getStudentProfileSubmittedKey(name, classroomCode)) === "true";
+}
+
+function markStudentProfileSubmitted(name, classroomCode) {
+    localStorage.setItem(getStudentProfileSubmittedKey(name, classroomCode), "true");
+}
+
 function setProfileCompletionState(completed) {
     if (continueBtn) continueBtn.hidden = completed;
     if (profileApprovalStatus) {
@@ -263,6 +276,23 @@ function setProfileCompletionState(completed) {
         profileApprovalStatus.textContent = completed
             ? "Your profile is waiting for teacher approval."
             : "";
+    }
+}
+
+function isValidClassroomCode(code) {
+    if (!/^\d{6}$/.test(code)) return false;
+    return Object.values(getTeacherUsers()).some(user => user.classroomCode === code);
+}
+
+function unlockProfileContinueOnEdit() {
+    if (!profileScreen?.classList.contains("active")) return;
+    studentProfileEditing = true;
+    setProfileCompletionState(false);
+}
+
+function markProfileEditing() {
+    if (profileScreen?.classList.contains("active")) {
+        studentProfileEditing = true;
     }
 }
 
@@ -281,6 +311,7 @@ function openApprovedStudentMenu(name) {
 
 function syncProfileApproval() {
     if (!profileScreen || !profileScreen.classList.contains("active")) return;
+    if (studentProfileEditing) return;
 
     const name = localStorage.getItem("studentName");
     if (!name) {
@@ -294,6 +325,12 @@ function syncProfileApproval() {
         return;
     }
 
+    const classroomCode = localStorage.getItem("studentClassroomCode") || "";
+    if (!hasSubmittedStudentProfile(name, classroomCode)) {
+        setProfileCompletionState(false);
+        return;
+    }
+
     if (request.status === "accepted") {
         openApprovedStudentMenu(name);
         return;
@@ -303,6 +340,7 @@ function syncProfileApproval() {
 }
 
 function loadSavedStudentProfile() {
+    studentProfileEditing = false;
     const savedName = localStorage.getItem("studentName") || "";
     const nameParts = savedName.split(/\s+/).filter(Boolean);
     if (studentName) studentName.value = savedName;
@@ -390,7 +428,19 @@ if (profileBackHome) {
 if (studentClassroomCode) {
     studentClassroomCode.addEventListener("input", () => {
         studentClassroomCode.value = studentClassroomCode.value.replace(/\D/g, "").slice(0, 6);
+        markProfileEditing();
     });
+}
+
+[studentLastName, studentFirstName, studentMiddleName, studentNoMiddleName]
+    .filter(Boolean)
+    .forEach(input => {
+        input.addEventListener("input", unlockProfileContinueOnEdit);
+        input.addEventListener("change", unlockProfileContinueOnEdit);
+    });
+
+if (studentGender) {
+    studentGender.addEventListener("change", markProfileEditing);
 }
 
 // ======================================================
@@ -2111,11 +2161,20 @@ continueBtn.addEventListener("click", () => {
         studentLastName ? studentLastName.value.trim() : ""
     ].filter(Boolean);
     const name = nameParts.join(" ") || studentName.value.trim();
+    const previousName = localStorage.getItem("studentName") || "";
+    const previousClassroomCode = localStorage.getItem("studentClassroomCode") || "";
 
     const classroomCode = studentClassroomCode ? studentClassroomCode.value.trim() : "";
     if (!/^\d{6}$/.test(classroomCode)) {
         const msg = "Please enter the 6-digit classroom code from your teacher.";
         showNotification(msg);
+        speakText(msg);
+        studentClassroomCode?.focus();
+        return;
+    }
+    if (!isValidClassroomCode(classroomCode)) {
+        const msg = "That classroom code is invalid. Please ask your teacher for the correct code.";
+        showNotification(msg, 5000);
         speakText(msg);
         studentClassroomCode?.focus();
         return;
@@ -2149,6 +2208,7 @@ continueBtn.addEventListener("click", () => {
     localStorage.setItem("studentName", name);
     localStorage.setItem("studentClassroomCode", classroomCode);
     localStorage.setItem("studentGender", gender);
+    studentProfileEditing = false;
     if (selectedAvatar === null) {
 
         const msg = "Please select an avatar.";
@@ -2162,9 +2222,13 @@ continueBtn.addEventListener("click", () => {
 
     const existingRequest = getStudentRequest(name);
     if (!existingRequest) {
-        const requests = getStudentRequests().filter(request => !(
-            request.name === name && request.classroomCode === classroomCode
-        ));
+        const requests = getStudentRequests().filter(request => {
+            const isCurrentRequest = request.name === name && request.classroomCode === classroomCode;
+            const isEditedPreviousRequest = request.name === previousName
+                && request.classroomCode === previousClassroomCode
+                && previousName !== name;
+            return !isCurrentRequest && !isEditedPreviousRequest;
+        });
         requests.push({
             name,
             classroomCode,
@@ -2174,11 +2238,13 @@ continueBtn.addEventListener("click", () => {
             createdAt: Date.now()
         });
         saveStudentRequests(requests);
+        markStudentProfileSubmitted(name, classroomCode);
         setProfileCompletionState(true);
         showNotification("Your request was sent to the teacher for approval.", 5000);
         return;
     }
 
+    markStudentProfileSubmitted(name, classroomCode);
     if (existingRequest.status !== "accepted") {
         const message = existingRequest.status === "rejected"
             ? "Your request was rejected. Please ask the teacher to review it."
@@ -2783,6 +2849,7 @@ if (notificationBox) {
 avatars.forEach((avatar, index) => {
 
     avatar.addEventListener("click", () => {
+        markProfileEditing();
 
         avatars.forEach(a => {
 
@@ -5180,6 +5247,5 @@ window.addEventListener("load",()=>{
 // <label for="studentGender">Select Gender</label>
 // 4422 
 // 4538
-
 // with approval 4724
-// 5185
+// 5251
