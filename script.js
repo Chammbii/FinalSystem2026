@@ -34,6 +34,7 @@ const teacherDashboard = document.getElementById("teacherDashboard");
 const teacherSidebarToggle = document.getElementById("teacherSidebarToggle");
 const teacherNameDisplay = document.getElementById("teacherNameDisplay");
 const teacherSidebarName = document.getElementById("teacherSidebarName");
+const teacherClassroomCode = document.getElementById("teacherClassroomCode");
 const teacherLogoutBtn = document.getElementById("teacherLogoutBtn");
 const teacherDashboardHomeBtn = document.getElementById("teacherDashboardHomeBtn");
 const teacherDashboardRefreshBtn = document.getElementById("teacherDashboardRefreshBtn");
@@ -80,8 +81,65 @@ const activityLogSubtitle = document.getElementById("activityLogSubtitle");
 const teacherStudentTrackerCount = document.getElementById("teacherStudentTrackerCount");
 const teacherStudentSort = document.getElementById("teacherStudentSort");
 const teacherStudentGenderFilter = document.getElementById("teacherStudentGenderFilter");
+const teacherTutorial = document.getElementById("teacherTutorial");
+const teacherTutorialTitle = document.getElementById("teacherTutorialTitle");
+const teacherTutorialDescription = document.getElementById("teacherTutorialDescription");
+const teacherTutorialBackBtn = document.getElementById("teacherTutorialBackBtn");
+const teacherTutorialNextBtn = document.getElementById("teacherTutorialNextBtn");
+const teacherTutorialSkipBtn = document.getElementById("teacherTutorialSkipBtn");
+const teacherTutorialDontShowAgain = document.getElementById("teacherTutorialDontShowAgain");
 let selectedHistoryStudent = null;
 let sessionStarsGained = 0;
+
+const TEACHER_TUTORIAL_DONT_SHOW_KEY = "quizlandTeacherTutorialDontShow";
+const teacherTutorialSteps = [
+    {
+        target: ".tdash-header",
+        title: "What is this dashboard?",
+        description: "This is your classroom control center. It gives you a quick view of student learning, progress, stars, and activity."
+    },
+    {
+        target: "#teacherClassroomCode",
+        title: "Your classroom code",
+        description: "Give this six-digit code to your students. They must enter it in their profile to join your classroom."
+    },
+    {
+        target: "#teacherNotificationsBtn",
+        title: "Review student requests",
+        description: "Open Notifications to approve or reject students. Approved students can enter the lesson menu."
+    },
+    {
+        target: "#teacherCustomizeBtn",
+        title: "Add a quiz",
+        description: "Use Add Quiz to create custom questions for alphabet, numbers, colors, shapes, or your own lesson."
+    },
+    {
+        target: "#teacherAddLessonBtn",
+        title: "Add a lesson",
+        description: "Use Add Lesson to create a new lesson with a cover image and learning items."
+    },
+    {
+        target: "#teacherDashboardPrintBtn",
+        title: "Print progress reports",
+        description: "Use Print to choose one student or all students and create a printable progress report."
+    },
+    {
+        target: "#teacherNeedsInterpretation",
+        title: "See who needs practice",
+        description: "This section highlights students who may need extra support. Green means online; gray means offline."
+    },
+    {
+        target: "#teacherStudentProgressTable",
+        title: "Track learning progress",
+        description: "Use the student tracker to review progress, quiz history, activity, and remove a student when needed."
+    }
+];
+let teacherTutorialStep = 0;
+
+function getTeacherTutorialPreferenceKey() {
+    const teacher = getTeacherSession() || currentTeacherUsername || "new";
+    return `${TEACHER_TUTORIAL_DONT_SHOW_KEY}_${encodeURIComponent(teacher)}`;
+}
 
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsModal = document.getElementById("settingsModal");
@@ -137,12 +195,13 @@ async function requestLandscapeMode() {
 
 // ---------- STUDENT ----------
 const studentName = document.getElementById("studentName");
+const studentClassroomCode = document.getElementById("studentClassroomCode");
 const studentLastName = document.getElementById("studentLastName");
 const studentFirstName = document.getElementById("studentFirstName");
 const studentMiddleName = document.getElementById("studentMiddleName");
 const studentNoMiddleName = document.getElementById("studentNoMiddleName");
-const studentAge = document.getElementById("studentAge");
 const studentGender = document.getElementById("studentGender");
+const profileApprovalStatus = document.getElementById("profileApprovalStatus");
 
 // ---------- AVATARS ----------
 const avatars = document.querySelectorAll(".avatar-card");
@@ -194,7 +253,81 @@ function showScreen(screen) {
 }
 
 function hasStudentProfile() {
-    return !!(localStorage.getItem("studentName") && localStorage.getItem("avatar"));
+    return !!(localStorage.getItem("studentName") && localStorage.getItem("avatar") && localStorage.getItem("studentClassroomCode"));
+}
+
+function setProfileCompletionState(completed) {
+    if (continueBtn) continueBtn.hidden = completed;
+    if (profileApprovalStatus) {
+        profileApprovalStatus.hidden = !completed;
+        profileApprovalStatus.textContent = completed
+            ? "Your profile is waiting for teacher approval."
+            : "";
+    }
+}
+
+function openApprovedStudentMenu(name) {
+    updateCurrentStudentRecord();
+    syncStudentPresence();
+    setProfileCompletionState(false);
+    showScreen(menuScreen);
+
+    setTimeout(() => {
+        const msg = `Welcome, ${name}! Let's start learning!`;
+        showNotification(msg);
+        speakText(msg);
+    }, 300);
+}
+
+function syncProfileApproval() {
+    if (!profileScreen || !profileScreen.classList.contains("active")) return;
+
+    const name = localStorage.getItem("studentName");
+    if (!name) {
+        setProfileCompletionState(false);
+        return;
+    }
+
+    const request = getStudentRequest(name);
+    if (!request) {
+        setProfileCompletionState(false);
+        return;
+    }
+
+    if (request.status === "accepted") {
+        openApprovedStudentMenu(name);
+        return;
+    }
+
+    setProfileCompletionState(true);
+}
+
+function loadSavedStudentProfile() {
+    const savedName = localStorage.getItem("studentName") || "";
+    const nameParts = savedName.split(/\s+/).filter(Boolean);
+    if (studentName) studentName.value = savedName;
+    if (studentClassroomCode) studentClassroomCode.value = localStorage.getItem("studentClassroomCode") || "";
+    if (studentFirstName) studentFirstName.value = nameParts[0] || "";
+    if (studentLastName) studentLastName.value = nameParts.length > 1 ? nameParts[nameParts.length - 1] : "";
+    if (studentMiddleName) {
+        studentMiddleName.value = nameParts.length > 2 ? nameParts.slice(1, -1).join(" ") : "";
+    }
+    if (studentGender) studentGender.value = localStorage.getItem("studentGender") || "";
+
+    const savedAvatar = Number(localStorage.getItem("avatar"));
+    selectedAvatar = savedAvatar > 0 ? savedAvatar : null;
+    avatars.forEach((avatarCard, index) => {
+        avatarCard.style.border = index + 1 === selectedAvatar
+            ? "4px solid #ffb703"
+            : "4px solid transparent";
+    });
+}
+
+function resumeStudentSession() {
+    if (!hasStudentProfile()) return;
+    loadSavedStudentProfile();
+    showScreen(profileScreen);
+    syncProfileApproval();
 }
 
 function getStudentStarsKey() {
@@ -243,14 +376,20 @@ function updateStudentHud() {
 // ======================================================
 
 startBtn.addEventListener("click", () => {
-
     showScreen(profileScreen);
-
+    loadSavedStudentProfile();
+    syncProfileApproval();
 });
 
 if (profileBackHome) {
     profileBackHome.addEventListener("click", () => {
         showScreen(homeScreen);
+    });
+}
+
+if (studentClassroomCode) {
+    studentClassroomCode.addEventListener("input", () => {
+        studentClassroomCode.value = studentClassroomCode.value.replace(/\D/g, "").slice(0, 6);
     });
 }
 
@@ -788,6 +927,30 @@ function saveTeacherUsers(users){
     localStorage.setItem("teacherUsers", JSON.stringify(users));
 }
 
+function createClassroomCode(users) {
+    const usedCodes = new Set(Object.values(users).map(user => user.classroomCode).filter(Boolean));
+    let code = "";
+    do {
+        code = String(Math.floor(100000 + Math.random() * 900000));
+    } while (usedCodes.has(code));
+    return code;
+}
+
+function getCurrentTeacherRecord() {
+    const email = getTeacherSession();
+    const users = getTeacherUsers();
+    if (!email || !users[email]) return null;
+    if (!/^\d{6}$/.test(users[email].classroomCode || "")) {
+        users[email].classroomCode = createClassroomCode(users);
+        saveTeacherUsers(users);
+    }
+    return users[email];
+}
+
+function getCurrentTeacherClassroomCode() {
+    return getCurrentTeacherRecord()?.classroomCode || "";
+}
+
 function saveTeacherSession(email){
     localStorage.setItem("teacherSession", email);
 }
@@ -846,7 +1009,8 @@ function handleTeacherRegister(){
     users[userKey] = {
         email: email,
         fullName: fullName,
-        password: password
+        password: password,
+        classroomCode: createClassroomCode(users)
     };
 
     saveTeacherUsers(users);
@@ -888,6 +1052,9 @@ function handleTeacherLogin(){
 
     currentTeacherUsername = user.fullName || user.email;
     saveTeacherSession(email);
+    if (teacherClassroomCode) {
+        teacherClassroomCode.querySelector("b").textContent = getCurrentTeacherClassroomCode();
+    }
     teacherPassword.value = "";
     showTeacherDashboard();
     showNotification("Welcome back, " + currentTeacherUsername + "!");
@@ -940,6 +1107,71 @@ function getStudentRecords() {
 function saveStudentRecords(records) {
     const key = getNamespacedKey("studentRecords");
     localStorage.setItem(key, JSON.stringify(records));
+}
+
+const STUDENT_PRESENCE_KEY = "quizlandStudentPresence";
+const STUDENT_PRESENCE_TIMEOUT = 15000;
+
+function getStudentPresence() {
+    try {
+        const presence = JSON.parse(localStorage.getItem(STUDENT_PRESENCE_KEY)) || {};
+        return presence && typeof presence === "object" ? presence : {};
+    } catch (error) {
+        return {};
+    }
+}
+
+function isStudentOnline(name) {
+    const lastSeen = Number(getStudentPresence()[name]);
+    return lastSeen > 0 && Date.now() - lastSeen < STUDENT_PRESENCE_TIMEOUT;
+}
+
+function syncStudentPresence() {
+    const name = localStorage.getItem("studentName");
+    const avatar = localStorage.getItem("avatar");
+    const request = name ? getStudentRequest(name) : null;
+    const presence = getStudentPresence();
+
+    if (name && avatar && request?.status === "accepted" && !document.hidden) {
+        presence[name] = Date.now();
+    } else if (name && (!request || request.status !== "accepted")) {
+        delete presence[name];
+    }
+
+    localStorage.setItem(STUDENT_PRESENCE_KEY, JSON.stringify(presence));
+}
+
+function clearStudentSession() {
+    const name = localStorage.getItem("studentName");
+    const presence = getStudentPresence();
+    if (name) delete presence[name];
+    localStorage.setItem(STUDENT_PRESENCE_KEY, JSON.stringify(presence));
+    localStorage.removeItem("studentName");
+    localStorage.removeItem("studentClassroomCode");
+    localStorage.removeItem("studentGender");
+    localStorage.removeItem("avatar");
+    if (studentName) studentName.value = "";
+    if (studentClassroomCode) studentClassroomCode.value = "";
+    if (studentFirstName) studentFirstName.value = "";
+    if (studentMiddleName) studentMiddleName.value = "";
+    if (studentLastName) studentLastName.value = "";
+    if (studentGender) studentGender.value = "";
+    if (studentNoMiddleName) studentNoMiddleName.checked = false;
+    selectedAvatar = null;
+    avatars.forEach(avatarCard => {
+        avatarCard.classList.remove("selected");
+        avatarCard.style.border = "4px solid transparent";
+    });
+    setProfileCompletionState(false);
+}
+
+function handleRemovedCurrentStudent() {
+    const name = localStorage.getItem("studentName");
+    if (!name || getStudentRecords().some(record => record.name === name)) return;
+
+    clearStudentSession();
+    showScreen(profileScreen);
+    showNotification("Your student account was removed. Please log in again.");
 }
 
 function updateCurrentStudentRecord() {
@@ -1256,7 +1488,8 @@ function renderTeacherNeedsInterpretation(records) {
                 ...record,
                 progress,
                 accuracy,
-                stars
+                stars,
+                online: isStudentOnline(record.name)
             } : null;
         })
         .filter(Boolean)
@@ -1273,7 +1506,11 @@ function renderTeacherNeedsInterpretation(records) {
 
     const items = needsStudents.map(student => `
         <div class="teacher-needs-item">
-            <div class="teacher-needs-name">${student.name}</div>
+            <div class="teacher-needs-name">
+                <span class="student-presence-dot ${student.online ? "is-online" : "is-offline"}" aria-label="${student.online ? "Online" : "Offline"}"></span>
+                ${student.name}
+            </div>
+            <div class="teacher-needs-status">${student.online ? "Online now" : "Offline"}</div>
             <div class="teacher-needs-meta">Progress: ${student.progress}% • Accuracy: ${student.accuracy}% • Stars: ${student.stars}</div>
             <div class="teacher-needs-note">Needs more practice to master: ${getUnfinishedLessons(student.name).join(", ") || "the current lesson"}.</div>
         </div>
@@ -1489,7 +1726,17 @@ function renderTeacherStudentProgress() {
             showNotification(`${record.name} has been removed.`);
         });
 
+        const signOutBtn = document.createElement("button");
+        signOutBtn.textContent = "Sign out";
+        signOutBtn.className = "tdash-btn tdash-btn--ghost";
+        signOutBtn.type = "button";
+        signOutBtn.addEventListener("click", () => {
+            signOutStudentSession(record.name);
+            showNotification(`${record.name} was signed out. They can log in again from the student profile.`);
+        });
+
         actionsWrap.appendChild(historyBtn);
+        actionsWrap.appendChild(signOutBtn);
         actionsWrap.appendChild(removeBtn);
         actionsTd.appendChild(actionsWrap);
 
@@ -1538,11 +1785,35 @@ function removeStudentRecord(studentName) {
     saveStudentRecords(records);
     localStorage.removeItem(getQuizHistoryKey(studentName));
     localStorage.removeItem(getActivityLogKey(studentName));
+    saveStudentRequests(getStudentRequests().filter(request => request.name !== studentName));
+    const presence = getStudentPresence();
+    delete presence[studentName];
+    localStorage.setItem(STUDENT_PRESENCE_KEY, JSON.stringify(presence));
+}
+
+function signOutStudentSession(studentName) {
+    const activeStudent = localStorage.getItem("studentName");
+    if (activeStudent !== studentName) return;
+
+    const presence = getStudentPresence();
+    delete presence[studentName];
+    localStorage.setItem(STUDENT_PRESENCE_KEY, JSON.stringify(presence));
+    localStorage.removeItem("studentName");
+    localStorage.removeItem("studentClassroomCode");
+    localStorage.removeItem("studentGender");
+    localStorage.removeItem("avatar");
+    localStorage.setItem(STUDENT_SIGNED_OUT_KEY, JSON.stringify({
+        name: studentName,
+        signedOutAt: Date.now()
+    }));
 }
 
 function showTeacherDashboard(){
     showScreen(teacherDashboard);
     setTeacherSidebarCollapsed(false);
+    if (teacherClassroomCode) {
+        teacherClassroomCode.querySelector("b").textContent = getCurrentTeacherClassroomCode() || "------";
+    }
     teacherNameDisplay.textContent = currentTeacherUsername;
     if (teacherSidebarName) {
         teacherSidebarName.textContent = currentTeacherUsername;
@@ -1550,9 +1821,126 @@ function showTeacherDashboard(){
 
     renderTeacherStudentProgress();
     renderTeacherNotifications();
+    window.setTimeout(maybeShowTeacherTutorial, 250);
 }
 
+function clearTeacherTutorialHighlight() {
+    document.querySelectorAll(".teacher-tutorial-highlight, .teacher-tutorial-focus").forEach(element => {
+        element.classList.remove("teacher-tutorial-highlight");
+        element.classList.remove("teacher-tutorial-focus");
+    });
+}
+
+function closeTeacherTutorial(savePreference = false) {
+    clearTeacherTutorialHighlight();
+    if (teacherTutorial) teacherTutorial.hidden = true;
+    if (savePreference || teacherTutorialDontShowAgain?.checked) {
+        localStorage.setItem(getTeacherTutorialPreferenceKey(), "true");
+    }
+}
+
+function renderTeacherTutorialStep() {
+    const step = teacherTutorialSteps[teacherTutorialStep];
+    if (!step || !teacherTutorial) return;
+
+    clearTeacherTutorialHighlight();
+    const target = document.querySelector(step.target);
+    if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        target.classList.add("teacher-tutorial-highlight");
+        target.classList.add("teacher-tutorial-focus");
+    }
+
+    teacherTutorialTitle.textContent = step.title;
+    teacherTutorialDescription.textContent = step.description;
+    teacherTutorialNextBtn.textContent = teacherTutorialStep === teacherTutorialSteps.length - 1
+        ? "Done"
+        : "Next";
+    teacherTutorialBackBtn.disabled = teacherTutorialStep === 0;
+    document.querySelectorAll(".teacher-tutorial-progress span").forEach((dot, index) => {
+        dot.classList.toggle("is-active", index === teacherTutorialStep);
+        dot.classList.toggle("is-complete", index < teacherTutorialStep);
+    });
+    window.requestAnimationFrame(() => positionTeacherTutorialCard(target));
+}
+
+function positionTeacherTutorialCard(target) {
+    if (!teacherTutorial || !target) return;
+    const card = teacherTutorial.querySelector(".teacher-tutorial-card");
+    if (!card) return;
+
+    const targetRect = target.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+    const margin = 14;
+    const edge = 16;
+    let left = targetRect.left + (targetRect.width / 2) - (cardRect.width / 2);
+    let top = targetRect.bottom + margin;
+
+    if (top + cardRect.height > window.innerHeight - edge) {
+        top = targetRect.top - cardRect.height - margin;
+    }
+    if (top < edge) top = edge;
+    left = Math.max(edge, Math.min(left, window.innerWidth - cardRect.width - edge));
+
+    card.style.left = `${left}px`;
+    card.style.top = `${top}px`;
+    card.style.transform = "none";
+}
+
+function openTeacherTutorial() {
+    if (!teacherTutorial) return;
+    teacherTutorialStep = 0;
+    teacherTutorialDontShowAgain.checked = false;
+    teacherTutorial.hidden = false;
+    renderTeacherTutorialStep();
+}
+
+function maybeShowTeacherTutorial() {
+    if (!teacherDashboard?.classList.contains("active")) return;
+    if (localStorage.getItem(getTeacherTutorialPreferenceKey()) === "true") return;
+    openTeacherTutorial();
+}
+
+if (teacherTutorialNextBtn) {
+    teacherTutorialNextBtn.addEventListener("click", () => {
+        if (teacherTutorialStep >= teacherTutorialSteps.length - 1) {
+            closeTeacherTutorial();
+            return;
+        }
+        teacherTutorialStep += 1;
+        renderTeacherTutorialStep();
+    });
+}
+
+if (teacherTutorialBackBtn) {
+    teacherTutorialBackBtn.addEventListener("click", () => {
+        if (teacherTutorialStep === 0) return;
+        teacherTutorialStep -= 1;
+        renderTeacherTutorialStep();
+    });
+}
+
+if (teacherTutorialSkipBtn) {
+    teacherTutorialSkipBtn.addEventListener("click", () => closeTeacherTutorial());
+}
+
+document.addEventListener("keydown", event => {
+    if (!teacherTutorial || teacherTutorial.hidden) return;
+
+    if (event.key === "ArrowRight") {
+        event.preventDefault();
+        teacherTutorialNextBtn.click();
+    } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        teacherTutorialBackBtn.click();
+    } else if (event.key === "Escape") {
+        event.preventDefault();
+        closeTeacherTutorial();
+    }
+});
+
 const STUDENT_REQUESTS_KEY = "quizlandStudentRequests";
+const STUDENT_SIGNED_OUT_KEY = "quizlandStudentSignedOut";
 
 function getStudentRequests() {
     try {
@@ -1568,12 +1956,18 @@ function saveStudentRequests(requests) {
 }
 
 function getStudentRequest(name) {
-    return getStudentRequests().find(request => request.name === name);
+    const classroomCode = localStorage.getItem("studentClassroomCode");
+    return getStudentRequests().find(request => (
+        request.name === name && request.classroomCode === classroomCode
+    ));
 }
 
 function updateTeacherNotificationBadge() {
     if (!teacherNotificationBadge) return;
-    const pendingCount = getStudentRequests().filter(request => request.status === "pending").length;
+    const classroomCode = getCurrentTeacherClassroomCode();
+    const pendingCount = getStudentRequests().filter(request => (
+        request.classroomCode === classroomCode && request.status === "pending"
+    )).length;
     teacherNotificationBadge.textContent = String(pendingCount);
     teacherNotificationBadge.hidden = pendingCount === 0;
 }
@@ -1582,7 +1976,10 @@ function renderTeacherNotifications() {
     updateTeacherNotificationBadge();
     if (!teacherNotificationsList) return;
 
-    const requests = getStudentRequests().sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
+    const classroomCode = getCurrentTeacherClassroomCode();
+    const requests = getStudentRequests()
+        .filter(request => request.classroomCode === classroomCode)
+        .sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
     teacherNotificationsList.innerHTML = "";
 
     if (!requests.length) {
@@ -1650,11 +2047,52 @@ if (teacherNotificationsCloseBtn) {
 }
 
 window.addEventListener("storage", event => {
-    if (event.key !== STUDENT_REQUESTS_KEY) return;
-    updateTeacherNotificationBadge();
-    if (teacherNotificationsModal && !teacherNotificationsModal.hidden) {
-        renderTeacherNotifications();
+    if (event.key === STUDENT_REQUESTS_KEY) {
+        updateTeacherNotificationBadge();
+        if (teacherNotificationsModal && !teacherNotificationsModal.hidden) {
+            renderTeacherNotifications();
+        }
+        syncProfileApproval();
     }
+
+    if (event.key === getNamespacedKey("studentRecords")) {
+        handleRemovedCurrentStudent();
+        if (teacherDashboard && teacherDashboard.classList.contains("active")) {
+            renderTeacherStudentProgress();
+        }
+    }
+
+    if (event.key === STUDENT_PRESENCE_KEY && teacherDashboard?.classList.contains("active")) {
+        renderTeacherStudentProgress();
+    }
+
+    if (event.key === STUDENT_SIGNED_OUT_KEY && event.newValue) {
+        try {
+            const signedOut = JSON.parse(event.newValue);
+            if (signedOut.name === localStorage.getItem("studentName")) {
+                clearStudentSession();
+                showScreen(profileScreen);
+                showNotification("You were signed out. Please log in again.");
+            }
+        } catch (error) {
+            console.warn("Student sign-out notice could not be read.", error);
+        }
+    }
+});
+
+window.setInterval(syncProfileApproval, 1000);
+window.setInterval(() => {
+    syncStudentPresence();
+    if (teacherDashboard?.classList.contains("active")) {
+        renderTeacherStudentProgress();
+    }
+}, 5000);
+document.addEventListener("visibilitychange", syncStudentPresence);
+window.addEventListener("beforeunload", () => {
+    const name = localStorage.getItem("studentName");
+    const presence = getStudentPresence();
+    if (name) delete presence[name];
+    localStorage.setItem(STUDENT_PRESENCE_KEY, JSON.stringify(presence));
 });
 
 // ======================================================
@@ -1673,6 +2111,15 @@ continueBtn.addEventListener("click", () => {
         studentLastName ? studentLastName.value.trim() : ""
     ].filter(Boolean);
     const name = nameParts.join(" ") || studentName.value.trim();
+
+    const classroomCode = studentClassroomCode ? studentClassroomCode.value.trim() : "";
+    if (!/^\d{6}$/.test(classroomCode)) {
+        const msg = "Please enter the 6-digit classroom code from your teacher.";
+        showNotification(msg);
+        speakText(msg);
+        studentClassroomCode?.focus();
+        return;
+    }
 
     if (name === "") {
 
@@ -1700,9 +2147,8 @@ continueBtn.addEventListener("click", () => {
     }
 
     localStorage.setItem("studentName", name);
+    localStorage.setItem("studentClassroomCode", classroomCode);
     localStorage.setItem("studentGender", gender);
-    if (studentAge) localStorage.setItem("studentAge", studentAge.value.trim());
-
     if (selectedAvatar === null) {
 
         const msg = "Please select an avatar.";
@@ -1716,16 +2162,19 @@ continueBtn.addEventListener("click", () => {
 
     const existingRequest = getStudentRequest(name);
     if (!existingRequest) {
-        const requests = getStudentRequests().filter(request => request.name !== name);
+        const requests = getStudentRequests().filter(request => !(
+            request.name === name && request.classroomCode === classroomCode
+        ));
         requests.push({
             name,
+            classroomCode,
             avatar: Number(selectedAvatar) || 1,
-            age: studentAge ? studentAge.value.trim() : "",
             gender,
             status: "pending",
             createdAt: Date.now()
         });
         saveStudentRequests(requests);
+        setProfileCompletionState(true);
         showNotification("Your request was sent to the teacher for approval.", 5000);
         return;
     }
@@ -1738,18 +2187,7 @@ continueBtn.addEventListener("click", () => {
         return;
     }
 
-    updateCurrentStudentRecord();
-
-    showScreen(menuScreen);
-
-    setTimeout(() => {
-
-        const msg = `Welcome, ${name}! Let's start learning!`;
-        showNotification(msg);
-        speakText(msg);
-
-    }, 300);
-
+    openApprovedStudentMenu(name);
 
 });
 
@@ -4718,6 +5156,8 @@ function completedCategories(){
 
 window.addEventListener("load",()=>{
 
+    resumeStudentSession();
+
     const total = completedCategories();
 
     if(total > 0){
@@ -4742,3 +5182,4 @@ window.addEventListener("load",()=>{
 // 4538
 
 // with approval 4724
+// 5185
