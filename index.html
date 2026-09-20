@@ -96,6 +96,9 @@
 
             <input type="hidden" id="studentName">
 
+            <label for="studentClassroomCode">Classroom Code</label>
+            <input type="text" id="studentClassroomCode" placeholder="Enter 6-digit classroom code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="off">
+
             <label for="studentLastName">Last Name</label>
             <input type="text" id="studentLastName" placeholder="Last Name" autocomplete="family-name">
 
@@ -110,9 +113,6 @@
                     None
                 </label>
             </div>
-
-            <label for="studentAge">Age</label>
-            <input type="number" id="studentAge" placeholder="Age" min="1" max="120" inputmode="numeric">
 
             <label for="studentGender">Gender</label>
             <select id="studentGender">
@@ -146,6 +146,8 @@
             <button id="continueBtn" class="main-btn">
                 Continue
             </button>
+
+            <p id="profileApprovalStatus" class="profile-approval-status" aria-live="polite" hidden></p>
 
             <button type="button" id="profileBackHome" class="back-btn">
                 ← Back to Home
@@ -233,6 +235,13 @@
                     </div>
                 </div>
                 <nav class="teacher-sidebar-nav" aria-label="Teacher dashboard actions">
+                    <div id="teacherClassroomCode" class="teacher-classroom-code" aria-label="Classroom code">
+                        <span class="teacher-sidebar-icon">#</span>
+                        <span class="teacher-sidebar-label">
+                            <small>Classroom code</small>
+                            <b>------</b>
+                        </span>
+                    </div>
                     <button id="teacherDashboardRefreshBtn" class="teacher-sidebar-btn teacher-sidebar-btn--refresh" type="button"><span class="teacher-sidebar-icon">↻</span><span class="teacher-sidebar-label">Refresh</span></button>
                     <button id="teacherNotificationsBtn" class="teacher-sidebar-btn teacher-sidebar-btn--notifications" type="button"><span class="teacher-sidebar-icon">🔔</span><span class="teacher-sidebar-label">Notifications</span><span id="teacherNotificationBadge" class="teacher-notification-badge" hidden>0</span></button>
                     <button id="teacherCustomizeBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">✦</span><span class="teacher-sidebar-label">Add Quiz</span></button>
@@ -316,7 +325,6 @@
                             <tr>
                                 <th>Name</th>
                                 <th>Avatar</th>
-                                <th>Age</th>
                                 <th>Gender</th>
                                 <th>Progress</th>
                                 <th>Latest Activity Score</th>
@@ -378,6 +386,30 @@
             </section>
 
             </main>
+        </div>
+
+        <div id="teacherTutorial" class="teacher-tutorial" hidden>
+            <div class="teacher-tutorial-backdrop"></div>
+            <div class="teacher-tutorial-card" role="dialog" aria-modal="true" aria-labelledby="teacherTutorialTitle">
+                <div class="teacher-tutorial-progress" aria-hidden="true">
+                    <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <p class="teacher-tutorial-eyebrow">Quick dashboard tour</p>
+                <h3 id="teacherTutorialTitle"></h3>
+                <p id="teacherTutorialDescription"></p>
+                <p id="teacherTutorialKeyboardHelp" class="teacher-tutorial-keyboard-help">Use ← and → on your keyboard to move between steps.</p>
+                <div class="teacher-tutorial-actions">
+                    <button id="teacherTutorialSkipBtn" class="tdash-btn tdash-btn--ghost" type="button">Skip tutorial</button>
+                    <div class="teacher-tutorial-navigation">
+                        <button id="teacherTutorialBackBtn" class="tdash-btn tdash-btn--ghost" type="button">Back</button>
+                        <button id="teacherTutorialNextBtn" class="tdash-btn tdash-btn--solid" type="button">Next</button>
+                    </div>
+                </div>
+                <label class="teacher-tutorial-preference">
+                    <input id="teacherTutorialDontShowAgain" type="checkbox">
+                    Do not show again
+                </label>
+            </div>
         </div>
 
         <div id="teacherPrintModal" class="teacher-print-modal" hidden>
@@ -983,7 +1015,7 @@
 
 <div id="notificationBox" class="notification-box"></div>
 
-<!-- Global student HUD (stars + settings) -->
+<!-- Global student HUD (stars + settings) -->   
 <div id="quizStarScore" class="quiz-star-score" aria-live="polite" hidden>
     <span class="quiz-star-icon" aria-hidden="true">★</span>
     <span id="quizStarCount" class="quiz-star-count">0</span>
@@ -992,7 +1024,6 @@
 
 </body>
 
-   
  <script src="script.js"></script>
 
 </html>
@@ -1000,6 +1031,6 @@
  <!-- 985 -->
   <!-- 993 -->  
 
-  <!-- with approval 1011 -->
+  <!-- with approval revise 1029 -->
 
   
