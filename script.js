@@ -39,6 +39,7 @@ const teacherLogoutBtn = document.getElementById("teacherLogoutBtn");
 const teacherDashboardHomeBtn = document.getElementById("teacherDashboardHomeBtn");
 const teacherDashboardRefreshBtn = document.getElementById("teacherDashboardRefreshBtn");
 const teacherDashboardPrintBtn = document.getElementById("teacherDashboardPrintBtn");
+const teacherDashboardSettingsBtn = document.getElementById("teacherDashboardSettingsBtn");
 const teacherNotificationsBtn = document.getElementById("teacherNotificationsBtn");
 const teacherNotificationBadge = document.getElementById("teacherNotificationBadge");
 const teacherNotificationsModal = document.getElementById("teacherNotificationsModal");
@@ -158,6 +159,7 @@ const sfxVolume = document.getElementById("sfxVolume");
 const sfxVolumeValue = document.getElementById("sfxVolumeValue");
 const voiceNarrationToggle = document.getElementById("voiceNarrationToggle");
 const microphoneToggle = document.getElementById("microphoneToggle");
+const tutorialToggle = document.getElementById("tutorialToggle");
 const microphoneAllowBtn = document.getElementById("microphoneAllowBtn");
 const microphoneStatus = document.getElementById("microphoneStatus");
 const microphoneExtraRow = document.getElementById("microphoneExtraRow");
@@ -165,6 +167,21 @@ const notificationBox = document.getElementById("notificationBox");
 const bgMusicElement = document.getElementById("bgMusic");
 const popSound = document.getElementById("popSound");
 const bgAudio = bgMusicElement || null;
+
+if (tutorialToggle) {
+    tutorialToggle.addEventListener("change", () => {
+        localStorage.setItem("quizlandTutorialEnabled", String(tutorialToggle.checked));
+        if (tutorialToggle.checked) {
+            localStorage.removeItem(getTeacherTutorialPreferenceKey());
+            if (teacherDashboard?.classList.contains("active")) {
+                closeSettingsModal();
+                openTeacherTutorial();
+            }
+        } else {
+            closeTeacherTutorial();
+        }
+    });
+}
 
 function setTeacherSidebarCollapsed(collapsed) {
     if (!teacherDashboard || !teacherSidebarToggle) return;
@@ -194,13 +211,12 @@ async function requestLandscapeMode() {
     }
 }
 
+window.addEventListener("load", requestLandscapeMode);
+window.addEventListener("orientationchange", requestLandscapeMode);
+
 // ---------- STUDENT ----------
 const studentName = document.getElementById("studentName");
 const studentClassroomCode = document.getElementById("studentClassroomCode");
-const studentLastName = document.getElementById("studentLastName");
-const studentFirstName = document.getElementById("studentFirstName");
-const studentMiddleName = document.getElementById("studentMiddleName");
-const studentNoMiddleName = document.getElementById("studentNoMiddleName");
 const studentGender = document.getElementById("studentGender");
 const profileApprovalStatus = document.getElementById("profileApprovalStatus");
 
@@ -342,14 +358,8 @@ function syncProfileApproval() {
 function loadSavedStudentProfile() {
     studentProfileEditing = false;
     const savedName = localStorage.getItem("studentName") || "";
-    const nameParts = savedName.split(/\s+/).filter(Boolean);
     if (studentName) studentName.value = savedName;
     if (studentClassroomCode) studentClassroomCode.value = localStorage.getItem("studentClassroomCode") || "";
-    if (studentFirstName) studentFirstName.value = nameParts[0] || "";
-    if (studentLastName) studentLastName.value = nameParts.length > 1 ? nameParts[nameParts.length - 1] : "";
-    if (studentMiddleName) {
-        studentMiddleName.value = nameParts.length > 2 ? nameParts.slice(1, -1).join(" ") : "";
-    }
     if (studentGender) studentGender.value = localStorage.getItem("studentGender") || "";
 
     const savedAvatar = Number(localStorage.getItem("avatar"));
@@ -432,7 +442,7 @@ if (studentClassroomCode) {
     });
 }
 
-[studentLastName, studentFirstName, studentMiddleName, studentNoMiddleName]
+[studentName]
     .filter(Boolean)
     .forEach(input => {
         input.addEventListener("input", unlockProfileContinueOnEdit);
@@ -648,6 +658,9 @@ function downloadTeacherPrintReport() {
 
 if (teacherDashboardPrintBtn) {
     teacherDashboardPrintBtn.addEventListener("click", openTeacherPrintModal);
+}
+if (teacherDashboardSettingsBtn) {
+    teacherDashboardSettingsBtn.addEventListener("click", openSettingsModal);
 }
 if (teacherPrintCancelBtn) {
     teacherPrintCancelBtn.addEventListener("click", closeTeacherPrintModal);
@@ -1202,11 +1215,7 @@ function clearStudentSession() {
     localStorage.removeItem("avatar");
     if (studentName) studentName.value = "";
     if (studentClassroomCode) studentClassroomCode.value = "";
-    if (studentFirstName) studentFirstName.value = "";
-    if (studentMiddleName) studentMiddleName.value = "";
-    if (studentLastName) studentLastName.value = "";
     if (studentGender) studentGender.value = "";
-    if (studentNoMiddleName) studentNoMiddleName.checked = false;
     selectedAvatar = null;
     avatars.forEach(avatarCard => {
         avatarCard.classList.remove("selected");
@@ -1886,6 +1895,8 @@ function closeTeacherTutorial(savePreference = false) {
     if (teacherTutorial) teacherTutorial.hidden = true;
     if (savePreference || teacherTutorialDontShowAgain?.checked) {
         localStorage.setItem(getTeacherTutorialPreferenceKey(), "true");
+        localStorage.setItem("quizlandTutorialEnabled", "false");
+        if (tutorialToggle) tutorialToggle.checked = false;
     }
 }
 
@@ -1947,6 +1958,7 @@ function openTeacherTutorial() {
 
 function maybeShowTeacherTutorial() {
     if (!teacherDashboard?.classList.contains("active")) return;
+    if (localStorage.getItem("quizlandTutorialEnabled") === "false") return;
     if (localStorage.getItem(getTeacherTutorialPreferenceKey()) === "true") return;
     openTeacherTutorial();
 }
@@ -2151,16 +2163,7 @@ window.addEventListener("beforeunload", () => {
 
 continueBtn.addEventListener("click", () => {
 
-    const nameParts = [
-        studentFirstName ? studentFirstName.value.trim() : "",
-        studentNoMiddleName && studentNoMiddleName.checked
-            ? ""
-            : studentMiddleName
-                ? studentMiddleName.value.trim()
-                : "",
-        studentLastName ? studentLastName.value.trim() : ""
-    ].filter(Boolean);
-    const name = nameParts.join(" ") || studentName.value.trim();
+    const name = studentName.value.trim();
     const previousName = localStorage.getItem("studentName") || "";
     const previousClassroomCode = localStorage.getItem("studentClassroomCode") || "";
 
@@ -2186,11 +2189,7 @@ continueBtn.addEventListener("click", () => {
         showNotification(msg);
         speakText(msg);
 
-        if (studentFirstName) {
-            studentFirstName.focus();
-        } else {
-            studentName.focus();
-        }
+        studentName.focus();
 
         return;
 
@@ -2283,6 +2282,9 @@ function updateVolumeLabel(input, label) {
 function openSettingsModal() {
     updateVolumeLabel(bgMusicVolume, bgMusicVolumeValue);
     updateVolumeLabel(sfxVolume, sfxVolumeValue);
+    if (tutorialToggle) {
+        tutorialToggle.checked = localStorage.getItem("quizlandTutorialEnabled") !== "false";
+    }
     if (settingsModal) settingsModal.style.display = "flex";
 }
 
@@ -2895,6 +2897,9 @@ window.onload = () => {
 
     const savedVoiceNarration = localStorage.getItem("voiceNarrationEnabled");
     applyVoiceNarrationSetting(savedVoiceNarration === null ? true : savedVoiceNarration === "true");
+    if (tutorialToggle) {
+        tutorialToggle.checked = localStorage.getItem("quizlandTutorialEnabled") !== "false";
+    }
 
     updateBgMusic();
     updateSfxVolume();
@@ -5238,14 +5243,7 @@ window.addEventListener("load",()=>{
 
 });
 
-// ======================================================
-// END OF PART 2
-// ======================================================
 
-
-// line 88 html
-// <label for="studentGender">Select Gender</label>
-// 4422 
-// 4538
+// 5185
 // with approval 4724
-// 5251
+// 5249
