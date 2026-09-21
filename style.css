@@ -18,6 +18,128 @@ body{
     scrollbar-color:#5bb8ff #e8f6ff;
 }
 
+.fun-background{
+    position:fixed;
+    inset:0;
+    overflow:hidden;
+    pointer-events:none;
+    z-index:0;
+}
+
+.screen > *{
+    position:relative;
+    z-index:1;
+}
+
+.fun-cloud{
+    position:absolute;
+    width:150px;
+    height:48px;
+    border-radius:999px;
+    background:rgba(255,255,255,.62);
+    filter:drop-shadow(0 8px 8px rgba(58,134,255,.08));
+    animation:fun-cloud-drift 18s linear infinite;
+}
+
+.fun-cloud::before,
+.fun-cloud::after{
+    content:"";
+    position:absolute;
+    bottom:12px;
+    border-radius:50%;
+    background:inherit;
+}
+
+.fun-cloud::before{left:28px;width:64px;height:64px;}
+.fun-cloud::after{left:78px;width:48px;height:48px;}
+.fun-cloud--one{top:13%;left:-180px;}
+.fun-cloud--two{top:58%;left:-240px;animation-delay:-9s;transform:scale(.72);}
+.fun-cloud--three{top:35%;left:-300px;animation-delay:-4s;transform:scale(.54);}
+.fun-cloud--four{top:78%;left:-200px;animation-delay:-14s;transform:scale(.86);}
+
+.fun-shape{
+    position:absolute;
+    opacity:.38;
+    animation:fun-shape-bob 6s ease-in-out infinite;
+}
+
+.fun-shape--circle{
+    right:8%;
+    top:20%;
+    width:32px;
+    height:32px;
+    border:7px solid #ffb703;
+    border-radius:50%;
+}
+
+.fun-shape--star{right:14%;bottom:19%;color:#ff6b6b;font-size:34px;animation-delay:-2s;}
+.fun-shape--diamond{left:10%;bottom:22%;width:28px;height:28px;background:#3a86ff;transform:rotate(45deg);animation-delay:-4s;}
+
+@keyframes fun-cloud-drift{from{transform:translateX(0);}to{transform:translateX(calc(100vw + 420px));}}
+@keyframes fun-shape-bob{
+    0%,100%{margin-top:0;transform:rotate(0) scale(1);}
+    50%{margin-top:-18px;transform:rotate(12deg) scale(1.12);}
+}
+
+body:has(#teacherDashboard.screen.active) .fun-background{
+    display:none;
+}
+
+.portrait-orientation-notice{
+    display:none;
+}
+
+@media screen and (orientation:portrait) and (max-width:900px){
+    body{
+        overflow:hidden;
+    }
+
+    .portrait-orientation-notice{
+        position:fixed;
+        inset:0;
+        z-index:10000;
+        display:grid;
+        place-items:center;
+        padding:24px;
+        background:linear-gradient(135deg,#1d3557,#3a86ff);
+        color:#fff;
+        text-align:center;
+    }
+
+    .portrait-orientation-card{
+        width:min(100%,420px);
+        padding:34px 26px;
+        border:1px solid rgba(255,255,255,.35);
+        border-radius:28px;
+        background:rgba(255,255,255,.14);
+        box-shadow:0 20px 50px rgba(0,0,0,.2);
+    }
+
+    .portrait-orientation-icon{
+        display:block;
+        margin-bottom:12px;
+        font-size:58px;
+        line-height:1;
+        animation:orientation-icon-bounce 1.5s ease-in-out infinite;
+    }
+
+    .portrait-orientation-card h2{
+        margin-bottom:12px;
+        font-size:30px;
+    }
+
+    .portrait-orientation-card p{
+        color:#e7f5ff;
+        font-size:17px;
+        line-height:1.5;
+    }
+}
+
+@keyframes orientation-icon-bounce{
+    0%,100%{transform:translateX(-6px);}
+    50%{transform:translateX(6px);}
+}
+
 /* =====================================================
    CUSTOM SCROLLBAR (kid-friendly)
 ===================================================== */
@@ -645,6 +767,8 @@ h1{
     background:linear-gradient(180deg,#1d3557 0%,#243f68 55%,#19304f 100%);
     color:#fff;
     box-shadow:10px 0 28px rgba(29,53,87,.16);
+    overflow-y:auto;
+    overscroll-behavior:contain;
     z-index:5;
     transition:width .28s ease, transform .28s ease, padding .28s ease;
 }
@@ -813,6 +937,7 @@ h1{
     margin-top:auto;
     padding:18px 10px 0;
     border-top:1px solid rgba(255,255,255,.13);
+    flex-shrink:0;
 }
 
 .teacher-sidebar-user{
@@ -1958,6 +2083,8 @@ h1{
         top:0;
         width:240px;
         transform:translateX(0);
+        max-height:100dvh;
+        overflow-y:auto;
     }
 
     .teacher-sidebar-collapsed .teacher-sidebar{
@@ -1978,6 +2105,10 @@ h1{
 
     .teacher-sidebar-collapsed .teacher-sidebar-toggle{
         left:auto;
+    }
+
+    .teacher-sidebar-account{
+        margin-top:20px;
     }
 
     .tdash-header h2{
@@ -2018,9 +2149,7 @@ h1{
     margin-bottom:25px;
 }
 
-#studentLastName,
-#studentFirstName,
-#studentMiddleName,
+#studentName,
 #studentClassroomCode,
 #studentGender{
 
@@ -4201,9 +4330,7 @@ footer{
     font-size:24px;
 }
 
-#studentLastName,
-#studentFirstName,
-#studentMiddleName,
+#studentName,
 #studentClassroomCode,
 #studentGender{
     min-height:64px;
@@ -4927,9 +5054,7 @@ footer{
 
 
 }
-/* 4107 */
-/* 4506 */
-/* 4725 */
 
 /* with approval 4804 */
 /* 4935 */
+/* 5060 */
