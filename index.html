@@ -6,6 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#1d3557">
     <meta name="screen-orientation" content="landscape">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="QuizLand">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="icon-192.png">
 
     <title>QuizLand</title>
 
@@ -35,6 +40,24 @@
 </head>
 
 <body>  
+
+    <div class="fun-background" aria-hidden="true">
+        <span class="fun-cloud fun-cloud--one"></span>
+        <span class="fun-cloud fun-cloud--two"></span>
+        <span class="fun-cloud fun-cloud--three"></span>
+        <span class="fun-cloud fun-cloud--four"></span>
+        <span class="fun-shape fun-shape--circle"></span>
+        <span class="fun-shape fun-shape--star">★</span>
+        <span class="fun-shape fun-shape--diamond"></span>
+    </div>
+
+    <div id="portraitOrientationNotice" class="portrait-orientation-notice" role="alert">
+        <div class="portrait-orientation-card">
+            <span class="portrait-orientation-icon" aria-hidden="true">↔</span>
+            <h2>Turn your device sideways</h2>
+            <p>QuizLand works in landscape mode. Rotate your phone or tablet to continue playing.</p>
+        </div>
+    </div>
 
     <!-- ===================================================== -->
     <!-- HOME SCREEN -->
@@ -94,25 +117,11 @@
                 Enter your details and choose your favorite avatar.
             </p>
 
-            <input type="hidden" id="studentName">
-
             <label for="studentClassroomCode">Classroom Code</label>
             <input type="text" id="studentClassroomCode" placeholder="Enter 6-digit classroom code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="off">
 
-            <label for="studentLastName">Last Name</label>
-            <input type="text" id="studentLastName" placeholder="Last Name" autocomplete="family-name">
-
-            <label for="studentFirstName">First Name</label>
-            <input type="text" id="studentFirstName" placeholder="First Name" autocomplete="given-name">
-
-            <label for="studentMiddleName">Middle Name</label>
-            <div class="profile-middle-name">
-                <input type="text" id="studentMiddleName" placeholder="Middle Name" autocomplete="additional-name">
-                <label class="profile-none-option">
-                    <input type="checkbox" id="studentNoMiddleName">
-                    None
-                </label>
-            </div>
+            <label for="studentName">Full Name</label>
+            <input type="text" id="studentName" placeholder="Enter your full name" autocomplete="name">
 
             <label for="studentGender">Gender</label>
             <select id="studentGender">
@@ -247,6 +256,7 @@
                     <button id="teacherCustomizeBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">✦</span><span class="teacher-sidebar-label">Add Quiz</span></button>
                     <button id="teacherAddLessonBtn" class="teacher-sidebar-btn teacher-sidebar-btn--accent" type="button"><span class="teacher-sidebar-icon">＋</span><span class="teacher-sidebar-label">Add Lesson</span></button>
                     <button id="teacherDashboardPrintBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">▣</span><span class="teacher-sidebar-label">Print</span></button>
+                    <button id="teacherDashboardSettingsBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">⚙</span><span class="teacher-sidebar-label">Settings</span></button>
                     <button id="teacherDashboardHomeBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">⌂</span><span class="teacher-sidebar-label">Home</span></button>
                 </nav>
                 <div class="teacher-sidebar-account">
@@ -718,6 +728,17 @@
                             </button>
                         </div>
                     </div>
+
+                    <div class="setting-row">
+                        <div class="setting-copy">
+                            <span class="setting-label">Tutorial</span>
+                            <span class="setting-hint">Show the teacher dashboard walkthrough when you sign in</span>
+                        </div>
+                        <label class="switch" for="tutorialToggle">
+                            <input id="tutorialToggle" type="checkbox" checked>
+                            <span class="switch-track" aria-hidden="true"></span>
+                        </label>
+                    </div>
                 </section>
 
                 <section class="settings-section" aria-labelledby="settingsDisplayTitle">
@@ -1025,12 +1046,14 @@
 </body>
 
  <script src="script.js"></script>
+ <script>
+    if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
+    }
+ </script>
 
 </html>
-<!-- 903 -->
- <!-- 985 -->
-  <!-- 993 -->  
 
   <!-- with approval 1011 -->
 
-  <!-- 1036 -->
+  <!-- 1059 little improvement -->
