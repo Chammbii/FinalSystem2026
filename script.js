@@ -204,10 +204,13 @@ async function requestLandscapeMode() {
     if (!window.matchMedia("(max-width: 900px)").matches || !screen.orientation?.lock) return;
 
     try {
-        await screen.orientation.lock("landscape");
+        await screen.orientation.lock("landscape-primary");
     } catch (error) {
-        // Orientation locking is restricted by some Android browsers unless fullscreen is active.
-        console.warn("Landscape orientation could not be locked by this browser.", error);
+        try {
+            await screen.orientation.lock("landscape");
+        } catch (fallbackError) {
+            console.warn("Landscape orientation could not be locked by this browser.", fallbackError);
+        }
     }
 }
 
