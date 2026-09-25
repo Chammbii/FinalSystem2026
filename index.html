@@ -57,6 +57,9 @@
 
     <section id="homeScreen" class="screen active">
 
+        <div class="home-floating-cloud home-floating-cloud--one" aria-hidden="true"></div>
+        <div class="home-floating-cloud home-floating-cloud--two" aria-hidden="true"></div>
+        <div class="home-floating-cloud home-floating-cloud--three" aria-hidden="true"></div>
         <div class="home-orbit home-orbit--one" aria-hidden="true"></div>
         <div class="home-orbit home-orbit--two" aria-hidden="true"></div>
         <div class="home-bubble home-bubble--one" aria-hidden="true"></div>
@@ -534,15 +537,12 @@
 
                 <!-- Alphabet -->
 
-                <div class="lesson-card">
+                <div class="lesson-card" data-lesson-category="alphabet" tabindex="0" role="button" aria-label="Select Alphabet lesson">
 
                     <img src="alphabetlesson.png">
 
                     <h3>Alphabet</h3>
 
-                    <button class="lesson-btn">
-                        Start
-                    </button>
                     <button class="quiz-menu-btn" data-quiz-category="alphabet" type="button" disabled>
                         Quiz 🔒
                     </button>
@@ -551,15 +551,12 @@
 
                 <!-- Numbers -->
 
-                <div class="lesson-card">
+                <div class="lesson-card" data-lesson-category="numbers" tabindex="0" role="button" aria-label="Select Numbers lesson">
 
                     <img src="numberlesson.png">
 
                     <h3>Numbers</h3>
 
-                    <button class="lesson-btn">
-                        Start
-                    </button>
                     <button class="quiz-menu-btn" data-quiz-category="numbers" type="button" disabled>
                         Quiz 🔒
                     </button>
@@ -568,15 +565,12 @@
 
                 <!-- Colors -->
 
-                <div class="lesson-card">
+                <div class="lesson-card" data-lesson-category="colors" tabindex="0" role="button" aria-label="Select Colors lesson">
 
                     <img src="colorlesson.png">
 
                     <h3>Colors</h3>
 
-                    <button class="lesson-btn">
-                        Start
-                    </button>
                     <button class="quiz-menu-btn" data-quiz-category="colors" type="button" disabled>
                         Quiz 🔒
                     </button>
@@ -585,15 +579,12 @@
 
                 <!-- Shapes -->
 
-                <div class="lesson-card">
+                <div class="lesson-card" data-lesson-category="shapes" tabindex="0" role="button" aria-label="Select Shapes lesson">
 
                     <img src="shapelesson.png">
 
                     <h3>Shapes</h3>
 
-                    <button class="lesson-btn">
-                        Start
-                    </button>
                     <button class="quiz-menu-btn" data-quiz-category="shapes" type="button" disabled>
                         Quiz 🔒
                     </button>
@@ -603,6 +594,10 @@
                 <div id="customLessonGrid" class="custom-lesson-grid"></div>
 
             </div>
+
+            <button id="menuStartBtn" class="main-btn menu-start-btn" type="button" disabled>
+                Start Selected Lesson
+            </button>
 
             <button id="backHome" class="back-btn">
                 ← Back to Home
@@ -1039,6 +1034,7 @@
 
  <script src="script.js"></script>
  <script>
+    
     if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
     }
@@ -1049,3 +1045,5 @@
   <!-- with approval 1011 -->
 
   <!-- 1059 little improvement -->
+
+  <!-- 5 it expert  -->
