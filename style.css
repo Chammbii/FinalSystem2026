@@ -192,6 +192,38 @@ body:has(#teacherDashboard.screen.active) .fun-background{
         linear-gradient(135deg,#75cfff 0%,#b7f7ff 42%,#fff3a8 100%);
 }
 
+.home-floating-cloud{
+    position:absolute;
+    width:170px;
+    height:52px;
+    border-radius:999px;
+    background:rgba(255,255,255,.72);
+    filter:drop-shadow(0 8px 8px rgba(58,134,255,.1));
+    pointer-events:none;
+    z-index:0;
+    animation:home-floating-cloud-drift 22s linear infinite;
+}
+
+.home-floating-cloud::before,
+.home-floating-cloud::after{
+    content:"";
+    position:absolute;
+    bottom:12px;
+    border-radius:50%;
+    background:inherit;
+}
+
+.home-floating-cloud::before{left:28px;width:68px;height:68px;}
+.home-floating-cloud::after{left:90px;width:52px;height:52px;}
+.home-floating-cloud--one{top:16%;left:-210px;}
+.home-floating-cloud--two{top:52%;left:-260px;transform:scale(.72);animation-delay:-8s;}
+.home-floating-cloud--three{top:76%;left:-220px;transform:scale(.52);animation-delay:-15s;}
+
+@keyframes home-floating-cloud-drift{
+    from{transform:translateX(0);}
+    to{transform:translateX(calc(100vw + 480px));}
+}
+
 #homeScreen::before{
     content:"";
     position:absolute;
@@ -2246,6 +2278,25 @@ h1{
 .lesson-card:hover{
 
     transform:translateY(-10px);
+}
+
+.lesson-card.selected{
+    outline:4px solid #ffb703;
+    outline-offset:4px;
+    box-shadow:0 18px 34px rgba(255,183,3,.3);
+    transform:translateY(-6px);
+}
+
+.menu-start-btn{
+    display:block;
+    width:min(100%,360px);
+    margin:28px auto 12px;
+}
+
+.menu-start-btn:disabled{
+    cursor:not-allowed;
+    opacity:.55;
+    transform:none;
 }
 
     .lesson-feedback{
@@ -5111,3 +5162,5 @@ footer{
         margin-top:10px;
     }
 }
+
+/* 5 it expert */
