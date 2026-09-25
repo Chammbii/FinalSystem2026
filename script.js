@@ -16,6 +16,7 @@ const startBtn = document.getElementById("startBtn");
 const continueBtn = document.getElementById("continueBtn");
 const profileBackHome = document.getElementById("profileBackHome");
 const backHome = document.getElementById("backHome");
+const menuStartBtn = document.getElementById("menuStartBtn");
 const teacherBtn = document.getElementById("teacherBtn");
 const teacherScreen = document.getElementById("teacherScreen");
 const teacherLoginForm = document.getElementById("teacherLoginForm");
@@ -228,8 +229,8 @@ const avatars = document.querySelectorAll(".avatar-card");
 
 // ---------- LESSON ----------
 const lessonScreen = document.getElementById("lessonScreen");
-const lessonButtons = document.querySelectorAll(".lesson-btn");
 const quizMenuButtons = document.querySelectorAll(".quiz-menu-btn");
+let selectedLessonCategory = null;
 const progressFill = document.getElementById("progressFill");
 const lessonTitle = document.getElementById("lessonTitle");
 const lessonImage = document.getElementById("lessonImage");
@@ -528,18 +529,11 @@ document.querySelectorAll(".password-toggle-btn").forEach(button => {
     });
 });
 
-// Clear error state when user starts typing in input fields
+// Clear the complete form error when the teacher returns to any credential field.
 [teacherEmail, teacherPassword, teacherConfirmPassword, teacherFullName].forEach(input => {
     if (input) {
-        input.addEventListener("input", () => {
-            const wrapper = input.closest(".input-wrapper");
-            if (wrapper) {
-                wrapper.classList.remove("error");
-                const errorMsg = wrapper.querySelector(".input-error-message");
-                if (errorMsg) {
-                    errorMsg.textContent = "";
-                }
-            }
+        ["input", "focus", "click"].forEach(eventName => {
+            input.addEventListener(eventName, clearTeacherError);
         });
     }
 });
@@ -693,7 +687,7 @@ function renderCustomQuestionList() {
     customQuestionList.innerHTML = questions.length
         ? questions.map(question => `
             <div class="custom-question-item">
-                <div><strong>${escapePrintText(question.promptEN)}</strong><span>${escapePrintText(question.category)} · ${escapePrintText(question.difficulty)}</span></div>
+                <div><strong>${escapePrintText(question.promptEN)}</strong><span>${escapePrintText(getLessonDisplayName(question.category))} · ${escapePrintText(question.difficulty)}</span></div>
                 <button class="tdash-btn tdash-btn--danger" type="button" data-custom-question-id="${escapePrintText(question.id)}">Remove</button>
             </div>`).join("")
         : '<p class="custom-question-empty">No custom questions added yet.</p>';
@@ -793,8 +787,25 @@ function getCustomLessons() {
     }
 }
 
+function getLessonDisplayName(category) {
+    const builtInNames = {
+        alphabet: "Alphabet",
+        numbers: "Numbers",
+        colors: "Colors",
+        shapes: "Shapes"
+    };
+    if (builtInNames[category]) return builtInNames[category];
+
+    const customLesson = getCustomLessons().find(lesson => lesson.id === category);
+    return customLesson?.name || category;
+}
+
 function saveCustomLessons(customLessons) {
     localStorage.setItem(getCustomLessonsKey(), JSON.stringify(customLessons));
+}
+
+function createCustomLessonId() {
+    return `custom-lesson-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function addLessonItemField(item = {}) {
@@ -884,11 +895,17 @@ if (teacherLessonForm) {
         event.preventDefault();
         const itemFields = [...customLessonItems.querySelectorAll(".custom-lesson-item")];
         const items = [];
-        for (const itemField of itemFields) {
-            const name = itemField.querySelector(".custom-lesson-item-name").value.trim();
-            const file = itemField.querySelector(".custom-lesson-item-image").files[0];
-            const image = file ? await readImageAsDataUrl(file) : itemField.dataset.image;
-            if (name && image) items.push({ name, image });
+        try {
+            for (const itemField of itemFields) {
+                const name = itemField.querySelector(".custom-lesson-item-name").value.trim();
+                const file = itemField.querySelector(".custom-lesson-item-image").files[0];
+                const image = file ? await readImageAsDataUrl(file) : itemField.dataset.image;
+                if (name && image) items.push({ name, image });
+            }
+        } catch (error) {
+            console.error("Unable to read custom lesson images.", error);
+            teacherLessonMessage.textContent = "A lesson picture could not be read. Please choose the pictures again.";
+            return;
         }
         if (!items.length) {
             teacherLessonMessage.textContent = "Add at least one picture and name.";
@@ -899,10 +916,18 @@ if (teacherLessonForm) {
             teacherLessonMessage.textContent = "Choose a cover picture.";
             return;
         }
+        let cover;
+        try {
+            cover = await readImageAsDataUrl(coverFile);
+        } catch (error) {
+            console.error("Unable to prepare custom lesson images.", error);
+            teacherLessonMessage.textContent = "The lesson images could not be prepared. Please choose them again.";
+            return;
+        }
         const customLesson = {
-            id: `custom-lesson-${Date.now()}`,
+            id: createCustomLessonId(),
             name: customLessonName.value.trim(),
-            cover: await readImageAsDataUrl(coverFile),
+            cover,
             items,
             hidden: false
         };
@@ -910,7 +935,21 @@ if (teacherLessonForm) {
             teacherLessonMessage.textContent = "Enter a lesson name.";
             return;
         }
-        saveCustomLessons([...getCustomLessons(), customLesson]);
+        try {
+            const existingLessons = await Promise.all(getCustomLessons().map(async lesson => ({
+                ...lesson,
+                cover: await compressImageDataUrl(lesson.cover),
+                items: await Promise.all((lesson.items || []).map(async item => ({
+                    ...item,
+                    image: await compressImageDataUrl(item.image)
+                })))
+            })));
+            saveCustomLessons([...existingLessons, customLesson]);
+        } catch (error) {
+            console.error("Unable to save custom lesson.", error);
+            teacherLessonMessage.textContent = "This lesson could not be saved. Please use smaller images.";
+            return;
+        }
         syncCustomLessonQuizCategories();
         syncCustomLessons();
         renderCustomLessonList();
@@ -926,9 +965,41 @@ if (teacherLessonForm) {
 function readImageAsDataUrl(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
+        reader.onload = async () => {
+            try {
+                resolve(await compressImageDataUrl(reader.result));
+            } catch (error) {
+                reject(error);
+            }
+        };
         reader.onerror = reject;
         reader.readAsDataURL(file);
+    });
+}
+
+function compressImageDataUrl(dataUrl) {
+    if (!dataUrl || typeof dataUrl !== "string") {
+        return Promise.resolve(dataUrl);
+    }
+
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => {
+            const maxDimension = 1000;
+            const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+            canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+            const context = canvas.getContext("2d");
+            if (!context) {
+                resolve(dataUrl);
+                return;
+            }
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/jpeg", 0.78));
+        };
+        image.onerror = reject;
+        image.src = dataUrl;
     });
 }
 
@@ -954,7 +1025,7 @@ function setTeacherMode(mode){
         teacherFormTitle.textContent = "Enter the Password";
         teacherFormSubtitle.textContent = "";
         teacherFormSubtitle.classList.add("teacher-hidden");
-        teacherSubmitBtn.textContent = "Unlock";
+        teacherSubmitBtn.textContent = "Log in";
         teacherPassword.placeholder = "Enter the password";
         teacherLoginForm.classList.add("teacher-form--unlock");
     } else {
@@ -1097,8 +1168,8 @@ function handleTeacherLogin(){
 
     if (isUnlock) {
         if (!password) {
-            setTeacherError("Please enter the password.");
             teacherPassword.focus();
+            setTeacherError("Please enter the password.", teacherPassword);
             return;
         }
     } else if (!email || !password) {
@@ -1110,9 +1181,12 @@ function handleTeacherLogin(){
     const user = users[email];
 
     if (!user || user.password !== password) {
-        setTeacherError(isUnlock ? "Incorrect password." : "Invalid email or password.");
         teacherPassword.value = "";
         teacherPassword.focus();
+        setTeacherError(
+            isUnlock ? "Incorrect password." : "Invalid email or password.",
+            isUnlock || user ? teacherPassword : teacherEmail
+        );
         return;
     }
 
@@ -1126,18 +1200,11 @@ function handleTeacherLogin(){
     showNotification("Welcome back, " + currentTeacherUsername + "!");
 }
 
-function setTeacherError(message){
-    // Find the first visible input wrapper and display the error there
-    const inputWrappers = document.querySelectorAll(".input-wrapper");
-    let targetWrapper = null;
-    
-    for (let wrapper of inputWrappers) {
-        if (!wrapper.classList.contains("teacher-hidden")) {
-            targetWrapper = wrapper;
-            break;
-        }
-    }
-    
+function setTeacherError(message, targetInput = null){
+    const targetWrapper = targetInput?.closest(".input-wrapper") ||
+        [...document.querySelectorAll(".input-wrapper")]
+            .find(wrapper => !wrapper.classList.contains("teacher-hidden"));
+
     if (targetWrapper) {
         targetWrapper.classList.add("error");
         const errorMsg = targetWrapper.querySelector(".input-error-message");
@@ -1519,19 +1586,12 @@ function renderTeacherNeedsInterpretation(records) {
     const container = document.getElementById("teacherNeedsInterpretation");
     if (!container) return;
 
-    const lessonLabels = {
-        alphabet: "Alphabet",
-        numbers: "Numbers",
-        colors: "Colors",
-        shapes: "Shapes"
-    };
-
     function getUnfinishedLessons(studentName) {
         const progressKey = getNamespacedKey(`student_${encodeURIComponent(studentName)}_lessonProgress`);
         const progress = JSON.parse(localStorage.getItem(progressKey)) || {};
         return Object.keys(lessons)
             .filter(category => !progress[category])
-            .map(category => lessonLabels[category] || category);
+            .map(getLessonDisplayName);
     }
 
     if (!records.length) {
@@ -2493,7 +2553,7 @@ if (window.speechSynthesis) {
 
 function speakText(text, options = {}) {
     return new Promise(resolve => {
-        if (!text || !isVoiceNarrationEnabled()) {
+        if (!text || !isVoiceNarrationEnabled() || !window.speechSynthesis) {
             resolve();
             return;
         }
@@ -2505,8 +2565,15 @@ function speakText(text, options = {}) {
             volume: options.volume ?? KID_VOICE_DEFAULTS.volume,
             lang: options.lang
         });
-        speech.onend = resolve;
-        speech.onerror = resolve;
+        let settled = false;
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            resolve();
+        };
+        speech.onend = finish;
+        speech.onerror = finish;
+        window.setTimeout(finish, options.timeout || 1200);
         speechSynthesis.speak(speech);
     });
 }
@@ -3061,21 +3128,63 @@ function renderCustomLessonGrid() {
         .forEach(([category, customLesson]) => {
         const card = document.createElement("div");
         card.className = "lesson-card custom-lesson-card";
+        card.dataset.lessonCategory = category;
+        card.tabIndex = 0;
+        card.setAttribute("role", "button");
+        card.setAttribute("aria-label", `Select ${customLesson.name} lesson`);
         card.innerHTML = `
             <img alt="">
             <h3></h3>
-            <button class="lesson-btn" type="button">Start</button>
             <button class="quiz-menu-btn" data-quiz-category="${category}" type="button" disabled>Quiz 🔒</button>`;
         card.querySelector("img").src = customLesson.cover;
         card.querySelector("img").alt = `${customLesson.name} lesson cover`;
         card.querySelector("h3").textContent = customLesson.name;
-        card.querySelector(".lesson-btn").addEventListener("click", () => openLesson(category));
-        card.querySelector(".quiz-menu-btn").addEventListener("click", () => openCategoryQuiz(category));
+        bindLessonCard(card);
         customLessonGrid.appendChild(card);
         });
 }
 
 syncCustomLessons();
+
+function bindLessonCard(card) {
+    const category = card.dataset.lessonCategory;
+    if (!category) return;
+    const select = () => selectLesson(category, card);
+    card.addEventListener("click", event => {
+        if (event.target.closest(".quiz-menu-btn")) return;
+        select();
+    });
+    card.addEventListener("keydown", event => {
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            select();
+        }
+    });
+    card.querySelector(".quiz-menu-btn")?.addEventListener("click", event => {
+        event.stopPropagation();
+        openCategoryQuiz(category);
+    });
+}
+
+function selectLesson(category, card) {
+    selectedLessonCategory = category;
+    document.querySelectorAll(".lesson-card[data-lesson-category]").forEach(entry => {
+        const isSelected = entry === card || entry.dataset.lessonCategory === category;
+        entry.classList.toggle("selected", isSelected);
+        entry.setAttribute("aria-pressed", String(isSelected));
+    });
+    if (menuStartBtn) {
+        menuStartBtn.disabled = false;
+        menuStartBtn.textContent = `Start ${translateLessonTitle(category)}`;
+    }
+}
+
+document.querySelectorAll(".lesson-card[data-lesson-category]").forEach(bindLessonCard);
+if (menuStartBtn) {
+    menuStartBtn.addEventListener("click", () => {
+        if (selectedLessonCategory) openLesson(selectedLessonCategory);
+    });
+}
 
 const translationMap = {
     One: "Isa",
@@ -3132,6 +3241,10 @@ function translateWord(word) {
 }
 
 function translateLessonTitle(category) {
+    const customLesson = customLessonMetadata[category];
+    if (customLesson?.name) {
+        return customLesson.name;
+    }
     if (selectedLanguage === 'tl') {
         return titleTranslations[category] || lessons[category][0].title;
     }
@@ -3851,11 +3964,6 @@ function openCategoryQuiz(category) {
     initializeQuiz();
 }
 
-lessonButtons[0].onclick = () => openLesson("alphabet");
-lessonButtons[1].onclick = () => openLesson("numbers");
-lessonButtons[2].onclick = () => openLesson("colors");
-lessonButtons[3].onclick = () => openLesson("shapes");
-
 quizMenuButtons.forEach(button => {
     button.addEventListener("click", () => openCategoryQuiz(button.dataset.quizCategory));
 });
@@ -4197,6 +4305,7 @@ let quizAnswered = false;
 let quizComplete = false;
 let selectedQuizChoice = null;
 let quizStageState = null;
+let quizStageTransitioning = false;
 
 function updateQuizStarDisplay(animate = false, gained = 0) {
     if (quizStarCountEl) {
@@ -4370,13 +4479,14 @@ function initializeQuiz(){
     quizAnswered = false;
     quizComplete = false;
     selectedQuizChoice = null;
+    quizStageTransitioning = false;
     quizProgressFillEl.style.width = "0%";
     updateQuizStarDisplay(false);
 
     quizTitle.textContent =
         selectedLanguage === 'tl'
-            ? quizTitleTranslations[quizCategory] || (quizCategory.charAt(0).toUpperCase() + quizCategory.slice(1) + " Quiz")
-            : (quizCategory.charAt(0).toUpperCase() + quizCategory.slice(1) + " Quiz");
+            ? (quizTitleTranslations[quizCategory] || `${translateLessonTitle(quizCategory)} Quiz`)
+            : `${translateLessonTitle(quizCategory)} Quiz`;
 
     // Sequential stage progression: Easy (5) -> Normal (10) -> Hard (15)
     // Must get every answer correct in a stage to unlock the next.
@@ -4558,21 +4668,18 @@ function generateQuizQuestions(category, difficulty, overrideCount){
     const cfg = QUIZ_DIFFICULTY[difficulty] || QUIZ_DIFFICULTY.easy;
     const questionCount = Math.max(1, overrideCount || cfg.questionCount);
 
-    // Shuffle, then reuse the pool if the category has fewer items than needed
-    // (e.g. numbers/colors/shapes have 10 items but Hard needs 15 questions).
-    const shuffledPool = () => pool
-        .map(item => ({item, sort: Math.random()}))
-        .sort((a, b) => a.sort - b.sort)
-        .map(entry => entry.item);
-
+    // Shuffle each pass and reuse items when a lesson has fewer items than
+    // the required stage count (for example, 10 items for 15 Hard questions).
     const selected = customItems.slice(0, questionCount);
-    while (selected.length < questionCount) {
-        const batch = shuffledPool();
-        for (const item of batch) {
-            if (selected.length >= questionCount) break;
-            if (!selected.includes(item)) selected.push(item);
+    if (pool.length) {
+        while (selected.length < questionCount) {
+            const batch = pool
+                .map(item => ({ item, sort: Math.random() }))
+                .sort((a, b) => a.sort - b.sort)
+                .map(entry => entry.item);
+            const remaining = questionCount - selected.length;
+            selected.push(...batch.slice(0, remaining));
         }
-        if (!batch.length) break;
     }
 
     return selected.map((item, idx) => {
@@ -4658,6 +4765,14 @@ function buildCustomQuizChoices(item, category, difficulty) {
 
     while (choices.length < targetCount && fallbackChoices.length) {
         choices.push(fallbackChoices.shift());
+    }
+
+    if (choices.length < targetCount) {
+        Object.values(lessons).flat().forEach(lesson => {
+            if (choices.length < targetCount && lesson.word && !choices.includes(lesson.word)) {
+                choices.push(lesson.word);
+            }
+        });
     }
 
     return choices.slice(0, targetCount).sort(() => Math.random() - 0.5);
@@ -4919,7 +5034,13 @@ function getNextDifficultyAfterCompletion(currentDifficulty, stageScore, questio
 const ADAPTIVE_LEARNING_THRESHOLD = 80;
 
 function getNextLessonCategory(currentCategory) {
-    const categoryOrder = ['alphabet', 'numbers', 'colors', 'shapes'];
+    const categoryOrder = [
+        'alphabet',
+        'numbers',
+        'colors',
+        'shapes',
+        ...Object.keys(customLessonMetadata)
+    ];
     const currentIndex = categoryOrder.indexOf(currentCategory);
     
     if (currentIndex === -1 || currentIndex >= categoryOrder.length - 1) {
@@ -4975,29 +5096,22 @@ function autoProgressToNextLesson(currentCat, currentLessonIdx, accuracy) {
 }
 
 function finishQuiz(){
+    if (quizStageTransitioning || quizComplete) return;
 
     const stageScore = quizStageState ? (quizStageState.stageScore || 0) : quizScore;
+    const currentStageIndex = quizStageState ? quizStageState.stageIndex : -1;
     const stageTotal = quizStageState
-        ? quizStageState.stageConfig[quizStageState.stageIndex].questionCount
+        ? quizStageState.stageConfig[currentStageIndex].questionCount
         : quizQuestions.length;
-    const nextDifficulty = getNextDifficultyAfterCompletion(quizDifficulty, stageScore, stageTotal);
-    const difficultyStageIndex = {
-        easy: 0,
-        medium: 1,
-        hard: 2
-    };
-    const currentStageIndex = difficultyStageIndex[quizDifficulty];
-    const nextStageIndex = Number.isInteger(currentStageIndex)
-        ? currentStageIndex + 1
-        : -1;
+    const nextStageIndex = currentStageIndex + 1;
     const canAdvance =
-        nextDifficulty !== 'end' &&
         quizStageState &&
-        nextStageIndex >= 0 &&
+        stageScore >= stageTotal &&
         nextStageIndex < quizStageState.stageConfig.length;
 
     // Perfect stage score required to unlock Normal or Hard.
     if (canAdvance) {
+        quizStageTransitioning = true;
 
         quizStageState.stageIndex = nextStageIndex;
         quizStageState.stageScore = 0;
@@ -5019,21 +5133,29 @@ function finishQuiz(){
             quizStageState.stageConfig[quizStageState.stageIndex].questionCount
         );
 
+        if (!quizQuestions.length) {
+            quizStageTransitioning = false;
+            quizComplete = true;
+            quizQuestionEl.textContent = "No questions available for this level.";
+            return;
+        }
+
         const totalQuestions = quizQuestions.length;
         questionNumberEl.textContent = selectedLanguage === 'tl'
             ? `Tanong 1 ng ${totalQuestions}`
             : `Question 1 of ${totalQuestions}`;
 
         const unlockMessage = selectedLanguage === 'tl'
-            ? (nextDifficulty === 'medium'
+            ? (nextStageIndex === 1
                 ? "Perpekto! Susunod: Normal level!"
                 : "Perpekto! Susunod: Hard level!")
-            : (nextDifficulty === 'medium'
+            : (nextStageIndex === 1
                 ? "Perfect! Next up: Normal level!"
                 : "Perfect! Next up: Hard level!");
         showNotification(unlockMessage);
 
         loadQuizQuestion();
+        quizStageTransitioning = false;
         return;
 
     }
@@ -5100,9 +5222,7 @@ function finishQuiz(){
     setTimeout(() => {
         if (autoProgressToNextLesson(quizCategory, quizLessonIndex, accuracy)) {
             // Successfully progressed to next lesson
-            const nextLessonTitle = selectedLanguage === 'tl'
-                ? titleTranslations[currentCategory] || currentCategory
-                : (currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1));
+            const nextLessonTitle = translateLessonTitle(currentCategory);
             
             const progressMessage = selectedLanguage === 'tl'
                 ? `Abot-kamay na ang bagong aralin: ${nextLessonTitle}!`
@@ -5250,3 +5370,4 @@ window.addEventListener("load",()=>{
 // 5185
 // with approval 4724
 // 5249
+// 5 it expert
