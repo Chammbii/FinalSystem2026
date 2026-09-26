@@ -27,10 +27,13 @@ const teacherFullName = document.getElementById("teacherFullName");
 const teacherError = document.getElementById("teacherError");
 const teacherBackHome = document.getElementById("teacherBackHome");
 const teacherToggleMode = document.getElementById("teacherToggleMode");
+const teacherForgotPasswordBtn = document.getElementById("teacherForgotPasswordBtn");
 const teacherFormTitle = document.getElementById("teacherFormTitle");
 const teacherFormSubtitle = document.getElementById("teacherFormSubtitle");
+const teacherUnlockEmail = document.getElementById("teacherUnlockEmail");
 const teacherSwitchText = document.getElementById("teacherSwitchText");
 const teacherSubmitBtn = document.getElementById("teacherSubmitBtn");
+const teacherUseEmailLoginBtn = document.getElementById("teacherUseEmailLoginBtn");
 const teacherDashboard = document.getElementById("teacherDashboard");
 const teacherSidebarToggle = document.getElementById("teacherSidebarToggle");
 const teacherNameDisplay = document.getElementById("teacherNameDisplay");
@@ -90,6 +93,19 @@ const teacherTutorialBackBtn = document.getElementById("teacherTutorialBackBtn")
 const teacherTutorialNextBtn = document.getElementById("teacherTutorialNextBtn");
 const teacherTutorialSkipBtn = document.getElementById("teacherTutorialSkipBtn");
 const teacherTutorialDontShowAgain = document.getElementById("teacherTutorialDontShowAgain");
+const supabaseConfig = window.QUIZLAND_SUPABASE;
+const supabaseClient = supabaseConfig?.enabled
+    && supabaseConfig.url
+    && supabaseConfig.anonKey
+    && window.supabase?.createClient
+    ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey, {
+        auth: {
+            autoRefreshToken: true,
+            persistSession: true,
+            detectSessionInUrl: true
+        }
+    })
+    : null;
 let selectedHistoryStudent = null;
 let sessionStarsGained = 0;
 let studentProfileEditing = false;
@@ -144,6 +160,30 @@ function getTeacherTutorialPreferenceKey() {
     return `${TEACHER_TUTORIAL_DONT_SHOW_KEY}_${encodeURIComponent(teacher)}`;
 }
 
+function setStudentNameFields(fullName) {
+    savedStudentFullName = String(fullName || "").trim();
+    studentNameFieldsEdited = false;
+    const nameParts = savedStudentFullName.split(/\s+/).filter(Boolean);
+    if (studentFirstName) studentFirstName.value = nameParts[0] || "";
+    if (studentLastName) studentLastName.value = nameParts.length > 1 ? nameParts[nameParts.length - 1] : "";
+    if (studentMiddleInitial) {
+        studentMiddleInitial.value = nameParts.length > 2
+            ? (nameParts[1].match(/\p{L}/u) || [""])[0].toUpperCase()
+            : "";
+    }
+}
+
+function getStudentFullName() {
+    if (savedStudentFullName && !studentNameFieldsEdited) return savedStudentFullName;
+
+    const firstName = studentFirstName?.value.trim() || "";
+    const lastName = studentLastName?.value.trim() || "";
+    const middleInitial = studentMiddleInitial?.value.trim().replace(/\.$/, "").toUpperCase() || "";
+    return [firstName, middleInitial ? `${middleInitial}.` : "", lastName]
+        .filter(Boolean)
+        .join(" ");
+}
+
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsModal = document.getElementById("settingsModal");
 const closeModal = document.getElementById("settingsCloseBtn") || document.querySelector("#settingsModal .close");
@@ -168,6 +208,16 @@ const notificationBox = document.getElementById("notificationBox");
 const bgMusicElement = document.getElementById("bgMusic");
 const popSound = document.getElementById("popSound");
 const bgAudio = bgMusicElement || null;
+
+if (bgMusicVolume) bgMusicVolume.value = "10";
+if (sfxVolume) sfxVolume.value = "10";
+
+if (bgAudio && bgMusicVolume) {
+    bgAudio.volume = Number(bgMusicVolume.value) / 100;
+}
+if (popSound && sfxVolume) {
+    popSound.volume = Number(sfxVolume.value) / 100;
+}
 
 if (tutorialToggle) {
     tutorialToggle.addEventListener("change", () => {
@@ -219,7 +269,11 @@ window.addEventListener("load", requestLandscapeMode);
 window.addEventListener("orientationchange", requestLandscapeMode);
 
 // ---------- STUDENT ----------
-const studentName = document.getElementById("studentName");
+const studentFirstName = document.getElementById("studentFirstName");
+const studentLastName = document.getElementById("studentLastName");
+const studentMiddleInitial = document.getElementById("studentMiddleInitial");
+let savedStudentFullName = "";
+let studentNameFieldsEdited = false;
 const studentClassroomCode = document.getElementById("studentClassroomCode");
 const studentGender = document.getElementById("studentGender");
 const profileApprovalStatus = document.getElementById("profileApprovalStatus");
@@ -362,7 +416,7 @@ function syncProfileApproval() {
 function loadSavedStudentProfile() {
     studentProfileEditing = false;
     const savedName = localStorage.getItem("studentName") || "";
-    if (studentName) studentName.value = savedName;
+    setStudentNameFields(savedName);
     if (studentClassroomCode) studentClassroomCode.value = localStorage.getItem("studentClassroomCode") || "";
     if (studentGender) studentGender.value = localStorage.getItem("studentGender") || "";
 
@@ -446,12 +500,25 @@ if (studentClassroomCode) {
     });
 }
 
-[studentName]
+[studentFirstName, studentLastName, studentMiddleInitial]
     .filter(Boolean)
     .forEach(input => {
-        input.addEventListener("input", unlockProfileContinueOnEdit);
-        input.addEventListener("change", unlockProfileContinueOnEdit);
+        const markNameEdited = () => {
+            studentNameFieldsEdited = true;
+            unlockProfileContinueOnEdit();
+        };
+        input.addEventListener("input", markNameEdited);
+        input.addEventListener("change", markNameEdited);
     });
+
+if (studentMiddleInitial) {
+    studentMiddleInitial.addEventListener("input", () => {
+        studentMiddleInitial.value = studentMiddleInitial.value
+            .replace(/[^\p{L}]/gu, "")
+            .slice(0, 1)
+            .toUpperCase();
+    });
+}
 
 if (studentGender) {
     studentGender.addEventListener("change", markProfileEditing);
@@ -474,6 +541,7 @@ function openTeacherLoginScreen() {
         // Returning teacher: password-only unlock screen
         setTeacherMode("unlock");
         teacherEmail.value = sessionEmail;
+        teacherUnlockEmail.textContent = `Logging in as ${sessionEmail}`;
         teacherPassword.value = "";
         teacherPassword.focus();
         return;
@@ -510,12 +578,41 @@ teacherLoginForm.addEventListener("submit", (event) => {
     event.preventDefault();
     if (teacherMode === "register") {
         handleTeacherRegister();
+    } else if (teacherMode === "resetPassword") {
+        handleTeacherPasswordReset();
     } else {
-        // login + unlock both verify password
+        // Login and locked-dashboard access both require password verification.
         handleTeacherLogin();
     }
 
 });
+
+if (teacherForgotPasswordBtn) {
+    teacherForgotPasswordBtn.addEventListener("click", sendTeacherPasswordReset);
+}
+
+if (teacherUseEmailLoginBtn) {
+    teacherUseEmailLoginBtn.addEventListener("click", () => {
+        const sessionEmail = getTeacherSession();
+        clearTeacherError();
+        setTeacherMode("login");
+        teacherEmail.value = sessionEmail || "";
+        teacherPassword.value = "";
+        teacherEmail.focus();
+    });
+}
+
+if (supabaseClient) {
+    supabaseClient.auth.onAuthStateChange(event => {
+        if (event === "PASSWORD_RECOVERY") {
+            clearTeacherError();
+            teacherLoginForm.reset();
+            setTeacherMode("resetPassword");
+            showScreen(teacherScreen);
+            teacherPassword.focus();
+        }
+    });
+}
 
 document.querySelectorAll(".password-toggle-btn").forEach(button => {
     button.addEventListener("click", () => {
@@ -533,7 +630,15 @@ document.querySelectorAll(".password-toggle-btn").forEach(button => {
 [teacherEmail, teacherPassword, teacherConfirmPassword, teacherFullName].forEach(input => {
     if (input) {
         ["input", "focus", "click"].forEach(eventName => {
-            input.addEventListener(eventName, clearTeacherError);
+            input.addEventListener(eventName, () => {
+                const wrapper = input.closest(".input-wrapper");
+                if (wrapper) {
+                    wrapper.classList.remove("error");
+                    const errorMsg = wrapper.querySelector(".input-error-message");
+                    if (errorMsg) errorMsg.textContent = "";
+                    input.setAttribute("aria-invalid", "false");
+                }
+            });
         });
     }
 });
@@ -543,6 +648,21 @@ teacherLogoutBtn.addEventListener("click", () => {
 
     currentTeacherUsername = "Teacher";
     clearTeacherSession();
+    if (supabaseClient) {
+        supabaseClient.auth.signOut().then(({ error }) => {
+            if (error) {
+                console.error("Unable to sign out teacher.", error);
+                showNotification("Could not end the teacher account session. Please try again.");
+                return;
+            }
+            showScreen(homeScreen);
+            showNotification("Teacher logged out successfully.");
+        }).catch(error => {
+            console.error("Teacher sign-out request failed.", error);
+            showNotification("Could not end the teacher account session. Please try again.");
+        });
+        return;
+    }
     showScreen(homeScreen);
     showNotification("Teacher logged out successfully.");
 
@@ -1012,6 +1132,10 @@ function clearTeacherError(){
         if (errorMsg) {
             errorMsg.textContent = "";
         }
+        const input = wrapper.querySelector("input");
+        if (input) {
+            input.setAttribute("aria-invalid", "false");
+        }
     });
 }
 
@@ -1020,15 +1144,28 @@ function setTeacherMode(mode){
 
     const isRegister = mode === "register";
     const isUnlock = mode === "unlock";
+    const isPasswordReset = mode === "resetPassword";
 
     if (isUnlock) {
         teacherFormTitle.textContent = "Enter the Password";
         teacherFormSubtitle.textContent = "";
         teacherFormSubtitle.classList.add("teacher-hidden");
+        teacherUnlockEmail.textContent = `Logging in as ${getTeacherSession() || ""}`;
+        teacherUnlockEmail.classList.remove("teacher-hidden");
         teacherSubmitBtn.textContent = "Log in";
         teacherPassword.placeholder = "Enter the password";
         teacherLoginForm.classList.add("teacher-form--unlock");
+    } else if (isPasswordReset) {
+        teacherUnlockEmail.classList.add("teacher-hidden");
+        teacherFormTitle.textContent = "Set a New Password";
+        teacherFormSubtitle.textContent = "Choose a new password for your teacher account.";
+        teacherFormSubtitle.classList.remove("teacher-hidden");
+        teacherSubmitBtn.textContent = "Update Password";
+        teacherPassword.placeholder = "New password";
+        teacherConfirmPassword.placeholder = "Confirm new password";
+        teacherLoginForm.classList.remove("teacher-form--unlock");
     } else {
+        teacherUnlockEmail.classList.add("teacher-hidden");
         teacherFormSubtitle.classList.remove("teacher-hidden");
         teacherLoginForm.classList.remove("teacher-form--unlock");
         teacherFormTitle.textContent = isRegister ? "Teacher Register" : "Teacher Login";
@@ -1037,32 +1174,56 @@ function setTeacherMode(mode){
             : "Enter your teacher credentials to access the dashboard.";
         teacherSubmitBtn.textContent = isRegister ? "Register" : "Login";
         teacherPassword.placeholder = "Password";
+        teacherConfirmPassword.placeholder = "Confirm Password";
         teacherSwitchText.textContent = isRegister
             ? "Already have an account?"
             : "Don't have an account?";
         teacherToggleMode.textContent = isRegister ? "Login" : "Register";
     }
 
-    teacherEmail.closest(".input-wrapper").classList.toggle("teacher-hidden", isUnlock);
-    teacherConfirmPassword.closest(".input-wrapper").classList.toggle("teacher-hidden", !isRegister);
+    teacherEmail.closest(".input-wrapper").classList.toggle("teacher-hidden", isUnlock || isPasswordReset);
+    teacherConfirmPassword.closest(".input-wrapper").classList.toggle("teacher-hidden", !isRegister && !isPasswordReset);
     teacherFullName.closest(".input-wrapper").classList.toggle("teacher-hidden", !isRegister);
+    if (teacherForgotPasswordBtn) {
+        teacherForgotPasswordBtn.classList.toggle("teacher-hidden", isRegister || isPasswordReset);
+    }
+    if (teacherUseEmailLoginBtn) {
+        teacherUseEmailLoginBtn.classList.toggle("teacher-hidden", !isUnlock);
+    }
     if (teacherSwitchRow) {
-        teacherSwitchRow.classList.toggle("teacher-hidden", isUnlock);
+        teacherSwitchRow.classList.toggle("teacher-hidden", isUnlock || isPasswordReset);
     }
 }
 
 function getTeacherUsers(){
     const raw = localStorage.getItem("teacherUsers");
     try {
-        return raw ? JSON.parse(raw) : {};
+        const parsed = raw ? JSON.parse(raw) : {};
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+        const profiles = {};
+        let removedPasswords = false;
+        Object.entries(parsed).forEach(([email, profile]) => {
+            if (!profile || typeof profile !== "object") return;
+            const { password, ...safeProfile } = profile;
+            if (password !== undefined) removedPasswords = true;
+            profiles[email] = safeProfile;
+        });
+        if (removedPasswords) localStorage.setItem("teacherUsers", JSON.stringify(profiles));
+        return profiles;
     } catch (error) {
         return {};
     }
 }
 
 function saveTeacherUsers(users){
-    localStorage.setItem("teacherUsers", JSON.stringify(users));
+    const profiles = Object.fromEntries(Object.entries(users).map(([email, profile]) => {
+        const { password, ...safeProfile } = profile;
+        return [email, safeProfile];
+    }));
+    localStorage.setItem("teacherUsers", JSON.stringify(profiles));
 }
+
+getTeacherUsers();
 
 function createClassroomCode(users) {
     const usedCodes = new Set(Object.values(users).map(user => user.classroomCode).filter(Boolean));
@@ -1119,7 +1280,26 @@ function restoreTeacherSession(){
     return true;
 }
 
-function handleTeacherRegister(){
+function getTeacherAuthRedirectUrl() {
+    if (window.location.protocol === "file:") return null;
+    return `${window.location.origin}${window.location.pathname}`;
+}
+
+function saveTeacherProfile(authUser, preferredName = "") {
+    const email = authUser.email?.trim().toLowerCase();
+    if (!email) throw new Error("Supabase returned a teacher account without an email.");
+
+    const users = getTeacherUsers();
+    const existingProfile = users[email] || {};
+    const metadata = authUser.user_metadata || {};
+    const fullName = preferredName || metadata.full_name || existingProfile.fullName || email;
+    const classroomCode = metadata.classroom_code || existingProfile.classroomCode || createClassroomCode(users);
+    users[email] = { email, fullName, classroomCode };
+    saveTeacherUsers(users);
+    return users[email];
+}
+
+async function handleTeacherRegister(){
     const email = teacherEmail.value.trim().toLowerCase();
     const password = teacherPassword.value;
     const confirmPassword = teacherConfirmPassword.value;
@@ -1135,33 +1315,53 @@ function handleTeacherRegister(){
         return;
     }
 
-    const users = getTeacherUsers();
-    const userKey = email;
-
-    if (users[userKey]) {
-        setTeacherError("This email is already registered.");
+    if (!supabaseClient) {
+        setTeacherError("Teacher authentication is unavailable. Please refresh and try again.", teacherEmail);
+        return;
+    }
+    const emailRedirectTo = getTeacherAuthRedirectUrl();
+    if (!emailRedirectTo) {
+        setTeacherError("Open QuizLand from its website or local server to register with email confirmation.", teacherEmail);
         return;
     }
 
-    users[userKey] = {
-        email: email,
-        fullName: fullName,
-        password: password,
-        classroomCode: createClassroomCode(users)
-    };
-
-    saveTeacherUsers(users);
+    const users = getTeacherUsers();
+    const classroomCode = users[email]?.classroomCode || createClassroomCode(users);
+    let data;
+    let error;
+    try {
+        ({ data, error } = await supabaseClient.auth.signUp({
+            email,
+            password,
+            options: {
+                data: { full_name: fullName, classroom_code: classroomCode },
+                emailRedirectTo
+            }
+        }));
+    } catch (requestError) {
+        console.error("Teacher registration request failed.", requestError);
+        setTeacherError("Unable to connect to the account service. Please try again.", teacherEmail);
+        return;
+    }
+    if (error) {
+        setTeacherError(error.message || "Unable to create the teacher account.", teacherEmail);
+        return;
+    }
+    if (data.user) saveTeacherProfile(data.user, fullName);
     setTeacherMode("login");
     showScreen(teacherScreen);
     teacherEmail.value = email;
     teacherPassword.value = "";
     teacherConfirmPassword.value = "";
     teacherFullName.value = "";
-    teacherEmail.focus();
-    showNotification("Registration successful. Please login with your new email.");
+    if (data.session) {
+        showNotification("Registration successful. You can now log in.");
+    } else {
+        showNotification("Check your email to confirm your teacher account before logging in.", 6000);
+    }
 }
 
-function handleTeacherLogin(){
+async function handleTeacherLogin(){
     const isUnlock = teacherMode === "unlock";
     const email = (isUnlock ? getTeacherSession() : teacherEmail.value.trim().toLowerCase()) || "";
     const password = teacherPassword.value;
@@ -1177,20 +1377,60 @@ function handleTeacherLogin(){
         return;
     }
 
-    const users = getTeacherUsers();
-    const user = users[email];
+    if (!supabaseClient) {
+        setTeacherError("Teacher authentication is unavailable. Please refresh and try again.", isUnlock ? teacherPassword : teacherEmail);
+        return;
+    }
 
-    if (!user || user.password !== password) {
+    let data;
+    let error;
+    try {
+        ({ data, error } = await supabaseClient.auth.signInWithPassword({ email, password }));
+    } catch (requestError) {
+        console.error("Teacher login request failed.", requestError);
+        setTeacherError("Unable to connect to the account service. Please try again.", teacherPassword);
+        return;
+    }
+    if (error || !data.user) {
         teacherPassword.value = "";
         teacherPassword.focus();
+        const isUnconfirmed = error?.code === "email_not_confirmed"
+            || /email not confirmed/i.test(error?.message || "");
+        const isInvalidCredentials = error?.code === "invalid_credentials"
+            || /invalid login credentials/i.test(error?.message || "");
         setTeacherError(
-            isUnlock ? "Incorrect password." : "Invalid email or password.",
-            isUnlock || user ? teacherPassword : teacherEmail
+            isUnconfirmed
+                ? "Please confirm your email before logging in."
+                : isInvalidCredentials
+                    ? "Email or password was not accepted. Check the email shown and try again, or use Forgot Password."
+                    : error?.message || "Unable to log in. Please try again.",
+            teacherPassword
         );
         return;
     }
 
-    currentTeacherUsername = user.fullName || user.email;
+    let profile;
+    try {
+        profile = saveTeacherProfile(data.user);
+    } catch (profileError) {
+        console.error("Unable to load teacher profile.", profileError);
+        setTeacherError("Signed in, but the teacher profile could not be loaded.", teacherEmail);
+        return;
+    }
+    const metadata = data.user.user_metadata || {};
+    if (!metadata.classroom_code || !metadata.full_name) {
+        try {
+            const { error: metadataError } = await supabaseClient.auth.updateUser({
+                data: { full_name: profile.fullName, classroom_code: profile.classroomCode }
+            });
+            if (metadataError) {
+                console.error("Unable to sync teacher profile metadata.", metadataError);
+            }
+        } catch (metadataError) {
+            console.error("Unable to sync teacher profile metadata.", metadataError);
+        }
+    }
+    currentTeacherUsername = profile.fullName || data.user.email;
     saveTeacherSession(email);
     if (teacherClassroomCode) {
         teacherClassroomCode.querySelector("b").textContent = getCurrentTeacherClassroomCode();
@@ -1200,6 +1440,79 @@ function handleTeacherLogin(){
     showNotification("Welcome back, " + currentTeacherUsername + "!");
 }
 
+async function sendTeacherPasswordReset() {
+    const email = (teacherMode === "unlock" ? getTeacherSession() : teacherEmail.value.trim().toLowerCase()) || "";
+    const feedbackInput = teacherMode === "unlock" ? teacherPassword : teacherEmail;
+    if (!email) {
+        feedbackInput.focus();
+        setTeacherError("Enter your email address first.", feedbackInput);
+        return;
+    }
+    if (!supabaseClient) {
+        setTeacherError("Password reset is unavailable. Please refresh and try again.", feedbackInput);
+        return;
+    }
+    const redirectTo = getTeacherAuthRedirectUrl();
+    if (!redirectTo) {
+        setTeacherError("Open QuizLand from its website or local server to reset your password by email.", feedbackInput);
+        return;
+    }
+
+    let error;
+    try {
+        ({ error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+            redirectTo
+        }));
+    } catch (requestError) {
+        console.error("Teacher password reset request failed.", requestError);
+        setTeacherError("Unable to connect to the account service. Please try again.", feedbackInput);
+        return;
+    }
+    if (error) {
+        setTeacherError(error.message || "Unable to send the password reset email.", feedbackInput);
+        return;
+    }
+    showNotification("If an account exists for that email, a password reset link has been sent.", 6000);
+}
+
+async function handleTeacherPasswordReset() {
+    const password = teacherPassword.value;
+    const confirmPassword = teacherConfirmPassword.value;
+    if (!password || !confirmPassword) {
+        setTeacherError("Enter and confirm your new password.", !password ? teacherPassword : teacherConfirmPassword);
+        return;
+    }
+    if (password !== confirmPassword) {
+        setTeacherError("Passwords do not match.", teacherConfirmPassword);
+        return;
+    }
+    if (!supabaseClient) {
+        setTeacherError("Password reset is unavailable. Please refresh and try again.", teacherPassword);
+        return;
+    }
+
+    let data;
+    let error;
+    try {
+        ({ data, error } = await supabaseClient.auth.updateUser({ password }));
+    } catch (requestError) {
+        console.error("Teacher password update request failed.", requestError);
+        setTeacherError("Unable to connect to the account service. Please try again.", teacherPassword);
+        return;
+    }
+    if (error) {
+        setTeacherError(error.message || "Unable to update the password.", teacherPassword);
+        return;
+    }
+    const email = data.user?.email || "";
+    clearTeacherSession();
+    setTeacherMode("login");
+    teacherLoginForm.reset();
+    teacherEmail.value = email;
+    teacherPassword.focus();
+    showNotification("Password updated. Log in with your new password.");
+}
+
 function setTeacherError(message, targetInput = null){
     const targetWrapper = targetInput?.closest(".input-wrapper") ||
         [...document.querySelectorAll(".input-wrapper")]
@@ -1207,6 +1520,10 @@ function setTeacherError(message, targetInput = null){
 
     if (targetWrapper) {
         targetWrapper.classList.add("error");
+        const input = targetWrapper.querySelector("input");
+        if (input) {
+            input.setAttribute("aria-invalid", "true");
+        }
         const errorMsg = targetWrapper.querySelector(".input-error-message");
         if (errorMsg) {
             errorMsg.textContent = message;
@@ -1283,7 +1600,11 @@ function clearStudentSession() {
     localStorage.removeItem("studentClassroomCode");
     localStorage.removeItem("studentGender");
     localStorage.removeItem("avatar");
-    if (studentName) studentName.value = "";
+    if (studentFirstName) studentFirstName.value = "";
+    if (studentLastName) studentLastName.value = "";
+    if (studentMiddleInitial) studentMiddleInitial.value = "";
+    savedStudentFullName = "";
+    studentNameFieldsEdited = false;
     if (studentClassroomCode) studentClassroomCode.value = "";
     if (studentGender) studentGender.value = "";
     selectedAvatar = null;
@@ -2226,7 +2547,7 @@ window.addEventListener("beforeunload", () => {
 
 continueBtn.addEventListener("click", () => {
 
-    const name = studentName.value.trim();
+    const name = getStudentFullName();
     const previousName = localStorage.getItem("studentName") || "";
     const previousClassroomCode = localStorage.getItem("studentClassroomCode") || "";
 
@@ -2248,14 +2569,21 @@ continueBtn.addEventListener("click", () => {
 
     if (name === "") {
 
-        const msg = "Please enter your name.";
+        const msg = "Please enter your first and last name.";
         showNotification(msg);
         speakText(msg);
 
-        studentName.focus();
+        studentFirstName.focus();
 
         return;
 
+    }
+    if (!studentFirstName.value.trim() || !studentLastName.value.trim()) {
+        const msg = "Please enter your first and last name.";
+        showNotification(msg);
+        speakText(msg);
+        (!studentFirstName.value.trim() ? studentFirstName : studentLastName).focus();
+        return;
     }
 
     const gender = studentGender.value;
@@ -2751,7 +3079,7 @@ function playPopSound() {
 function updateBgMusic() {
     if (!bgAudio) return;
     const enabled = bgMusicToggle ? bgMusicToggle.checked : false;
-    const volume = bgMusicVolume ? Number(bgMusicVolume.value) / 100 : 0.6;
+    const volume = bgMusicVolume ? Number(bgMusicVolume.value) / 100 : 0.1;
 
     bgAudio.volume = volume;
 
@@ -2945,11 +3273,14 @@ avatars.forEach((avatar, index) => {
 
 window.onload = () => {
 
+    if (bgMusicVolume) bgMusicVolume.value = "10";
+    if (sfxVolume) sfxVolume.value = "10";
+
     const savedName = localStorage.getItem("studentName");
 
     if (savedName) {
 
-        studentName.value = savedName;
+        setStudentNameFields(savedName);
 
     }
 
@@ -3251,6 +3582,10 @@ function translateLessonTitle(category) {
     return lessons[category][0].title;
 }
 
+function getActivityLessonName(category) {
+    return translateLessonTitle(category).replace(/\s+lesson$/i, "");
+}
+
 function translateLessonProgress(count, total) {
     if (selectedLanguage === 'tl') {
         return `Aralin ${count} ng ${total}`;
@@ -3462,28 +3797,28 @@ const VOICE_ANSWER_ALIASES = {
     Ten: ["ten", "10", "tin", "sampu", "diyis", "diez", "dies"],
 
     // Colors
-    Red: ["red", "read", "rad", "pula", "pulang", "rojo"],
-    Blue: ["blue", "blu", "bloo", "asul", "azul", "bughaw"],
-    Yellow: ["yellow", "yelo", "yellow", "dilaw", "dilaw", "amarillo"],
-    Green: ["green", "grin", "berde", "verde", "lunti"],
+    Red: ["red", "read", "rid", "ed", "pula", "wed"],
+    Blue: ["blue", "blu", "bloo", "asul", "azul", "bughaw", "mlue"],
+    Yellow: ["yellow", "yelo", "yello", "dilaw", "elow", "yillow"],
+    Green: ["green", "grin", "berde", "verde", "gin","jin"],
     // Orange already listed above
-    Purple: ["purple", "purpl", "purpel", "ube", "lila", "violet", "morado"],
-    Black: ["black", "blak", "itim", "negro", "dark"],
-    White: ["white", "wite", "puti", "blanco", "blanc"],
-    Brown: ["brown", "braun", "kayumanggi", "kayumangi", "tsokolate", "chocolate"],
-    Pink: ["pink", "pinck", "rosas", "rosa", "pinkish"],
+    Purple: ["purple", "purpl", "purpel", "ube", "lila", "violet", "puple"],
+    Black: ["black", "blak", "itim", "bla", "back"],
+    White: ["white", "wite", "puti", "way", "wayt"],
+    Brown: ["brown", "braun", "bawn", "brow", "ban", "bron"],
+    Pink: ["pink", "pinck", "pik", "pin", "ink"],
 
     // Shapes
     Circle: ["circle", "sirkel", "circl", "bilog", "round", "circulo"],
     Square: ["square", "skwer", "parisukat", "kwadrado", "cuadro"],
-    Triangle: ["triangle", "trayangle", "triangel", "tatsulok", "triangulo"],
-    Rectangle: ["rectangle", "rektangle", "parihaba", "rektanggulo", "rectangulo"],
-    Star: ["star", "ster", "bituin", "bituing", "estrella"],
-    Heart: ["heart", "hart", "puso", "corazon"],
-    Pentagon: ["pentagon", "pentagono", "5 sides", "five sides"],
-    Hexagon: ["hexagon", "heksagon", "hexagono", "6 sides", "six sides"],
-    Diamond: ["diamond", "daymond", "diyamante", "rhombus", "diamante"],
-    Oval: ["oval", "ovel", "obalo", "ellipse", "egg shape", "egg"]
+    Triangle: ["triangle", "trayangle", "triangel", "tatsulok", "tayanggel"],
+    Rectangle: ["rectangle", "rektangle", "tangle", "rektanggle", "rec angle"],
+    Star: ["star", "ster", "satar", "istar", "stars"],
+    Heart: ["heart", "hart", "puso", "hat"],
+    Pentagon: ["pentagon", "pentagon", "entagon", "pen agon"],
+    Hexagon: ["hexagon", "heksagon", "hexagono", "hesagon", "exagon"],
+    Diamond: ["diamond", "daymond", "diyamante", "aimon", "dayamon"],
+    Oval: ["oval", "ovel", "obalo", "obal", "bal", "ubal"]
 };
 
 function normalizeSpokenText(text) {
@@ -3921,8 +4256,6 @@ let selectedLanguage = 'en';
 function openLesson(category){
     currentCategory = category;
     currentLesson = 0;
-    const lessonTitle = translateLessonTitle(category);
-    recordStudentActivity(`Opened ${lessonTitle}`);
     openLessonContinue(category);
 }
 
@@ -3959,7 +4292,7 @@ function openCategoryQuiz(category) {
     if (!getCompletedLessonCategories()[category]) return;
     currentCategory = category;
     quizCategory = category;
-    recordStudentActivity(`Started ${translateLessonTitle(category)} quiz`);
+    recordStudentActivity(`Opened ${getActivityLessonName(category)} quiz`);
     showScreen(quizScreen);
     initializeQuiz();
 }
@@ -4062,6 +4395,7 @@ loadLesson = function () {
 
     lessonContainerAnimation();
 
+    recordStudentActivity(`Opened ${getActivityLessonName(currentCategory)} lesson`);
     originalLoadLesson();
 
     updateLessonButtons();
@@ -4431,6 +4765,7 @@ function finishLesson() {
 
     setTimeout(() => {
 
+        recordStudentActivity(`Finished ${getActivityLessonName(quizCategory)} lesson and opened its quiz`);
         showScreen(quizScreen);
 
         initializeQuiz();
@@ -5062,23 +5397,22 @@ function getNextLessonPath(category, lessonIndex) {
         return { category: nextCategory, lessonIndex: 0 };
     }
     
-    return null; // Completed all lessons
+    return { category: "alphabet", lessonIndex: 0 };
 }
 
 function getAdaptiveLessonPath(category, lessonIndex, accuracy) {
-    if (accuracy < ADAPTIVE_LEARNING_THRESHOLD) {
-        const nextCategory = getNextLessonCategory(category);
-        return nextCategory ? { category: nextCategory, lessonIndex: 0 } : null;
+    if (accuracy >= ADAPTIVE_LEARNING_THRESHOLD) {
+        return { category, lessonIndex };
     }
 
     return getNextLessonPath(category, lessonIndex);
 }
 
 function calculateQuizAccuracy(score, total) {
-    return total > 0 ? Math.round((score / total) * 100) : 0;
+    return total > 0 ? (score / total) * 100 : 0;
 }
 
-function shouldMoveToNextCategory(accuracy) {
+function shouldAdvanceToNextLesson(accuracy) {
     return accuracy < ADAPTIVE_LEARNING_THRESHOLD;
 }
 
@@ -5176,7 +5510,7 @@ function finishQuiz(){
 
     // Calculate accuracy for adaptive learning
     const accuracy = calculateQuizAccuracy(quizScore, sessionTotal);
-    const shouldMoveToNextCategoryAfterQuiz = shouldMoveToNextCategory(accuracy);
+    const shouldAdvanceToNextLessonAfterQuiz = shouldAdvanceToNextLesson(accuracy);
 
     let finishMessage;
     const didNotAdvance = stageScore < stageTotal && quizDifficulty !== 'hard';
@@ -5185,25 +5519,25 @@ function finishQuiz(){
         finishMessage = selectedLanguage === 'tl'
             ? `Kailangan mong makuha ang lahat ng tama (${stageScore}/${stageTotal}) para makapunta sa susunod na level.`
             : `You need a perfect score (${stageScore}/${stageTotal}) to unlock the next level.`;
-    } else if (shouldMoveToNextCategoryAfterQuiz) {
-        // Scores below 80% move the student to the next category.
+    } else if (shouldAdvanceToNextLessonAfterQuiz) {
+        // Scores below 80% move the student to the next lesson.
         finishMessage = selectedLanguage === 'tl'
-            ? `${accuracy}% accuracy. Pupunta tayo sa susunod na kategorya...`
-            : `${accuracy}% accuracy. Moving to the next category...`;
+            ? `${Math.round(accuracy)}% accuracy. Pupunta tayo sa susunod na aralin...`
+            : `${Math.round(accuracy)}% accuracy. Moving to the next lesson...`;
     } else {
         finishMessage = selectedLanguage === 'tl'
-            ? `${accuracy}% accuracy. Magpapatuloy tayo sa kasalukuyang kategorya.`
-            : `${accuracy}% accuracy. Continuing in the current category.`;
+            ? `${Math.round(accuracy)}% accuracy. Mananatili tayo sa araling ito.`
+            : `${Math.round(accuracy)}% accuracy. Staying in this lesson.`;
     }
 
     const noticeDuration = didNotAdvance ? 10000 : 2800;
     showNotification(finishMessage, noticeDuration);
     if (didNotAdvance) {
         speakText(finishMessage);
-    } else if (shouldMoveToNextCategoryAfterQuiz) {
+    } else if (shouldAdvanceToNextLessonAfterQuiz) {
         speakText(selectedLanguage === 'tl' 
-            ? `Magandang gawa! Pupunta tayo sa susunod na kategorya.` 
-            : `Moving to the next category.`);
+            ? `Pupunta tayo sa susunod na aralin.` 
+            : `Moving to the next lesson.`);
     }
 
     currentScoreEl.textContent = String(quizScore);
@@ -5370,4 +5704,4 @@ window.addEventListener("load",()=>{
 // 5185
 // with approval 4724
 // 5249
-// 5 it expert
+// 5707 full force
