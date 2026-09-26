@@ -60,6 +60,27 @@
         <div class="home-floating-cloud home-floating-cloud--one" aria-hidden="true"></div>
         <div class="home-floating-cloud home-floating-cloud--two" aria-hidden="true"></div>
         <div class="home-floating-cloud home-floating-cloud--three" aria-hidden="true"></div>
+        <div class="home-floating-cloud home-floating-cloud--four" aria-hidden="true"></div>
+        <div class="home-floating-cloud home-floating-cloud--five" aria-hidden="true"></div>
+        <div class="home-floating-cloud home-floating-cloud--six" aria-hidden="true"></div>
+        <svg class="home-shape-animal home-shape-animal--bird" viewBox="0 0 120 90" aria-hidden="true">
+            <ellipse cx="57" cy="53" rx="34" ry="21" fill="#ff9f1c"/>
+            <circle cx="83" cy="38" r="16" fill="#ffb703"/>
+            <ellipse cx="51" cy="48" rx="19" ry="11" fill="#ffd166" transform="rotate(-24 51 48)"/>
+            <polygon points="98,37 118,43 98,48" fill="#fb8500"/>
+            <circle cx="87" cy="34" r="2.5" fill="#1d3557"/>
+            <polygon points="32,55 12,45 19,64" fill="#ff6b6b"/>
+            <path d="M48 72l-5 9m20-9 5 9" fill="none" stroke="#1d3557" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+        <svg class="home-shape-animal home-shape-animal--fish" viewBox="0 0 120 90" aria-hidden="true">
+            <ellipse cx="55" cy="47" rx="35" ry="24" fill="#4cc9f0"/>
+            <polygon points="22,47 2,29 2,65" fill="#4895ef"/>
+            <polygon points="50,24 62,8 73,26" fill="#72efdd"/>
+            <polygon points="50,70 64,84 76,67" fill="#72efdd"/>
+            <circle cx="77" cy="41" r="4" fill="#fff"/>
+            <circle cx="78" cy="41" r="2" fill="#1d3557"/>
+            <path d="M83 54q-9 8-18 0" fill="none" stroke="#1d3557" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
         <div class="home-orbit home-orbit--one" aria-hidden="true"></div>
         <div class="home-orbit home-orbit--two" aria-hidden="true"></div>
         <div class="home-bubble home-bubble--one" aria-hidden="true"></div>
@@ -115,8 +136,20 @@
             <label for="studentClassroomCode">Classroom Code</label>
             <input type="text" id="studentClassroomCode" placeholder="Enter 6-digit classroom code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="off">
 
-            <label for="studentName">Full Name</label>
-            <input type="text" id="studentName" placeholder="Enter your full name" autocomplete="name">
+            <div class="profile-name-fields" role="group" aria-label="Student name">
+                <div class="profile-name-field">
+                    <label for="studentFirstName">First name</label>
+                    <input type="text" id="studentFirstName" placeholder="First name" autocomplete="given-name" required>
+                </div>
+                <div class="profile-name-field">
+                    <label for="studentLastName">Last name</label>
+                    <input type="text" id="studentLastName" placeholder="Last name" autocomplete="family-name" required>
+                </div>
+                <div class="profile-name-field">
+                    <label for="studentMiddleInitial">Middle initial</label>
+                    <input type="text" id="studentMiddleInitial" placeholder="Optional" aria-label="Middle initial, optional" maxlength="1" autocomplete="additional-name">
+                </div>
+            </div>
 
             <label for="studentGender">Gender</label>
             <select id="studentGender">
@@ -175,6 +208,7 @@
                 <h2 id="teacherFormTitle">Teacher Login</h2>
 
                 <p id="teacherFormSubtitle">Enter your teacher credentials to access the dashboard.</p>
+                <p id="teacherUnlockEmail" class="teacher-unlock-email teacher-hidden"></p>
 
                 <form id="teacherLoginForm" class="teacher-form">
 
@@ -207,7 +241,7 @@
                     <div class="teacher-form-actions">
                         <button type="submit" class="main-btn" id="teacherSubmitBtn">Login</button>
                         <button type="button" id="teacherForgotPasswordBtn" class="secondary-btn teacher-hidden">Forgot Password</button>
-                        <button type="button" id="teacherLogoutUnlockBtn" class="secondary-btn teacher-hidden">Logout</button>
+                        <button type="button" id="teacherUseEmailLoginBtn" class="secondary-btn teacher-hidden">Use a different email</button>
                     </div>
 
                     <p class="teacher-switch">
@@ -653,9 +687,9 @@
                     <div class="setting-row setting-row--stack">
                         <div class="setting-copy setting-copy--inline">
                             <span class="setting-label">Music Volume</span>
-                            <span class="setting-value" id="bgMusicVolumeValue">60%</span>
+                            <span class="setting-value" id="bgMusicVolumeValue">10%</span>
                         </div>
-                        <input id="bgMusicVolume" class="setting-range" type="range" min="0" max="100" value="60">
+                        <input id="bgMusicVolume" class="setting-range" type="range" min="0" max="100" value="10">
                     </div>
 
                     <div class="setting-row">
@@ -672,9 +706,9 @@
                     <div class="setting-row setting-row--stack">
                         <div class="setting-copy setting-copy--inline">
                             <span class="setting-label">Effects Volume</span>
-                            <span class="setting-value" id="sfxVolumeValue">80%</span>
+                            <span class="setting-value" id="sfxVolumeValue">10%</span>
                         </div>
-                        <input id="sfxVolume" class="setting-range" type="range" min="0" max="100" value="80">
+                        <input id="sfxVolume" class="setting-range" type="range" min="0" max="100" value="10">
                     </div>
                 </section>
 
@@ -1045,5 +1079,4 @@
   <!-- with approval 1011 -->
 
   <!-- 1059 little improvement -->
-
-  <!-- 5 it expert  -->
+  <!--full force  -->
