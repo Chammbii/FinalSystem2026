@@ -677,9 +677,39 @@ teacherDashboardHomeBtn.addEventListener("click", () => {
 
 if (teacherDashboardRefreshBtn) {
     teacherDashboardRefreshBtn.addEventListener("click", () => {
-        showTeacherDashboard();
-        showNotification("Dashboard refreshed.");
+        refreshTeacherDashboard();
     });
+}
+
+function refreshTeacherDashboard() {
+    if (!getTeacherSession()) {
+        showNotification("Log in to a teacher account to refresh the dashboard.");
+        return;
+    }
+
+    if (teacherClassroomCode) {
+        teacherClassroomCode.querySelector("b").textContent = getCurrentTeacherClassroomCode() || "------";
+    }
+    syncCustomLessons();
+    syncCustomLessonQuizCategories();
+    renderCustomQuestionList();
+    renderCustomLessonList();
+    renderTeacherStudentProgress();
+    renderTeacherNotifications();
+
+    if (selectedHistoryStudent) {
+        const studentStillExists = getStudentRecords().some(record => record.name === selectedHistoryStudent);
+        if (studentStillExists) {
+            renderQuizHistory(selectedHistoryStudent);
+            renderActivityLog(selectedHistoryStudent);
+        } else {
+            selectedHistoryStudent = null;
+            renderQuizHistory(null);
+            renderActivityLog(null);
+        }
+    }
+
+    showNotification("Teacher dashboard refreshed.");
 }
 
 function escapePrintText(value) {
@@ -1319,12 +1349,6 @@ async function handleTeacherRegister(){
         setTeacherError("Teacher authentication is unavailable. Please refresh and try again.", teacherEmail);
         return;
     }
-    const emailRedirectTo = getTeacherAuthRedirectUrl();
-    if (!emailRedirectTo) {
-        setTeacherError("Open QuizLand from its website or local server to register with email confirmation.", teacherEmail);
-        return;
-    }
-
     const users = getTeacherUsers();
     const classroomCode = users[email]?.classroomCode || createClassroomCode(users);
     let data;
@@ -1334,8 +1358,7 @@ async function handleTeacherRegister(){
             email,
             password,
             options: {
-                data: { full_name: fullName, classroom_code: classroomCode },
-                emailRedirectTo
+                data: { full_name: fullName, classroom_code: classroomCode }
             }
         }));
     } catch (requestError) {
@@ -1347,17 +1370,38 @@ async function handleTeacherRegister(){
         setTeacherError(error.message || "Unable to create the teacher account.", teacherEmail);
         return;
     }
-    if (data.user) saveTeacherProfile(data.user, fullName);
+    let profile;
+    try {
+        if (data.user) profile = saveTeacherProfile(data.user, fullName);
+    } catch (profileError) {
+        console.error("Unable to save the new teacher profile.", profileError);
+        setTeacherError("Your account was created, but the teacher profile could not be saved.", teacherEmail);
+        return;
+    }
+
     setTeacherMode("login");
-    showScreen(teacherScreen);
     teacherEmail.value = email;
     teacherPassword.value = "";
     teacherConfirmPassword.value = "";
     teacherFullName.value = "";
     if (data.session) {
-        showNotification("Registration successful. You can now log in.");
+        currentTeacherUsername = profile?.fullName || fullName || email;
+        saveTeacherSession(email);
+        selectedHistoryStudent = null;
+        syncCustomLessons();
+        syncCustomLessonQuizCategories();
+        renderCustomQuestionList();
+        if (teacherClassroomCode) {
+            teacherClassroomCode.querySelector("b").textContent = getCurrentTeacherClassroomCode();
+        }
+        showTeacherDashboard();
+        showNotification("Registration successful. Welcome to your teacher dashboard!");
     } else {
-        showNotification("Check your email to confirm your teacher account before logging in.", 6000);
+        showScreen(teacherScreen);
+        setTeacherError(
+            "Email confirmation is still enabled in Supabase. Disable email confirmation in the Supabase Auth settings to open the dashboard immediately.",
+            teacherEmail
+        );
     }
 }
 
@@ -1400,7 +1444,7 @@ async function handleTeacherLogin(){
             || /invalid login credentials/i.test(error?.message || "");
         setTeacherError(
             isUnconfirmed
-                ? "Please confirm your email before logging in."
+                ? "Email confirmation is still enabled in Supabase. Disable it in the Supabase Auth settings, then try logging in again."
                 : isInvalidCredentials
                     ? "Email or password was not accepted. Check the email shown and try again, or use Forgot Password."
                     : error?.message || "Unable to log in. Please try again.",
@@ -1432,6 +1476,10 @@ async function handleTeacherLogin(){
     }
     currentTeacherUsername = profile.fullName || data.user.email;
     saveTeacherSession(email);
+    selectedHistoryStudent = null;
+    syncCustomLessons();
+    syncCustomLessonQuizCategories();
+    renderCustomQuestionList();
     if (teacherClassroomCode) {
         teacherClassroomCode.querySelector("b").textContent = getCurrentTeacherClassroomCode();
     }
@@ -2259,7 +2307,9 @@ function showTeacherDashboard(){
     }
     teacherNameDisplay.textContent = currentTeacherUsername;
     if (teacherSidebarName) {
-        teacherSidebarName.textContent = currentTeacherUsername;
+        const signedInEmail = getTeacherSession() || currentTeacherUsername;
+        teacherSidebarName.textContent = signedInEmail;
+        teacherSidebarName.title = signedInEmail;
     }
 
     renderTeacherStudentProgress();
