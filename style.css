@@ -215,13 +215,43 @@ body:has(#teacherDashboard.screen.active) .fun-background{
 
 .home-floating-cloud::before{left:28px;width:68px;height:68px;}
 .home-floating-cloud::after{left:90px;width:52px;height:52px;}
-.home-floating-cloud--one{top:16%;left:-210px;}
-.home-floating-cloud--two{top:52%;left:-260px;transform:scale(.72);animation-delay:-8s;}
-.home-floating-cloud--three{top:76%;left:-220px;transform:scale(.52);animation-delay:-15s;}
+.home-floating-cloud--one{top:12%;left:-210px;--cloud-scale:1;animation-duration:18s;}
+.home-floating-cloud--two{top:43%;left:-260px;--cloud-scale:.72;animation-delay:-8s;animation-duration:18s;}
+.home-floating-cloud--three{top:76%;left:-220px;--cloud-scale:.52;animation-delay:-15s;animation-duration:18s;}
+.home-floating-cloud--four{top:28%;left:-240px;--cloud-scale:.62;animation-delay:-4s;animation-duration:18s;opacity:.8;}
+.home-floating-cloud--five{top:61%;left:-200px;--cloud-scale:.88;animation-delay:-12s;animation-duration:18s;}
+.home-floating-cloud--six{top:88%;left:-260px;--cloud-scale:.46;animation-delay:-6s;animation-duration:18s;opacity:.72;}
 
 @keyframes home-floating-cloud-drift{
-    from{transform:translateX(0);}
-    to{transform:translateX(calc(100vw + 480px));}
+    from{transform:translateX(0) scale(var(--cloud-scale,1));}
+    to{transform:translateX(calc(100vw + 480px)) scale(var(--cloud-scale,1));}
+}
+
+.home-shape-animal{
+    position:absolute;
+    z-index:1;
+    width:clamp(68px,9vw,118px);
+    height:auto;
+    pointer-events:none;
+    filter:drop-shadow(0 8px 8px rgba(29,53,87,.14));
+    animation:home-animal-float 5s ease-in-out infinite;
+}
+
+.home-shape-animal--bird{
+    top:18%;
+    right:12%;
+}
+
+.home-shape-animal--fish{
+    bottom:16%;
+    left:9%;
+    width:clamp(72px,10vw,132px);
+    animation-delay:-2.5s;
+}
+
+@keyframes home-animal-float{
+    0%,100%{transform:translateY(0) rotate(-3deg);}
+    50%{transform:translateY(-12px) rotate(3deg);}
 }
 
 #homeScreen::before{
@@ -437,6 +467,15 @@ body:has(#teacherDashboard.screen.active) .fun-background{
     #homeScreen *,
     #homeScreen::before,
     #homeScreen::after{animation:none !important;}
+    #homeScreen .home-floating-cloud{
+        animation:home-floating-cloud-drift 18s linear infinite !important;
+    }
+    .home-floating-cloud--one{left:4%;top:12%;}
+    .home-floating-cloud--two{left:58%;top:43%;}
+    .home-floating-cloud--three{left:28%;top:76%;}
+    .home-floating-cloud--four{left:72%;top:28%;}
+    .home-floating-cloud--five{left:8%;top:61%;}
+    .home-floating-cloud--six{left:47%;top:88%;}
 }
 
 
@@ -660,6 +699,14 @@ h1{
 
 .teacher-hidden{
     display:none !important;
+}
+
+.teacher-unlock-email{
+    margin:0 0 12px;
+    color:#556680;
+    font-size:15px;
+    font-weight:600;
+    overflow-wrap:anywhere;
 }
 
 .teacher-switch{
@@ -2126,7 +2173,9 @@ h1{
     margin-bottom:25px;
 }
 
-#studentName,
+#studentFirstName,
+#studentLastName,
+#studentMiddleInitial,
 #studentClassroomCode,
 #studentGender{
 
@@ -2152,6 +2201,37 @@ h1{
     font-size:18px;
     font-weight:700;
     text-align:left;
+}
+
+.profile-name-fields{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(100px,.55fr);
+    gap:12px;
+    align-items:end;
+    margin-bottom:10px;
+}
+
+.profile-name-field{
+    min-width:0;
+}
+
+.profile-name-field label{
+    display:block;
+    margin:6px 0 4px;
+    color:#555;
+    font-size:18px;
+    font-weight:700;
+    text-align:left;
+}
+
+.profile-name-fields input{
+    width:100%;
+    min-width:0;
+    padding:18px;
+    border:3px solid #8ecae6;
+    border-radius:15px;
+    font-size:20px;
+    outline:none;
 }
 
 .profile-middle-name{
@@ -4326,7 +4406,9 @@ footer{
     font-size:24px;
 }
 
-#studentName,
+#studentFirstName,
+#studentLastName,
+#studentMiddleInitial,
 #studentClassroomCode,
 #studentGender{
     min-height:64px;
@@ -4336,6 +4418,16 @@ footer{
 
 .profile-container > label{
     font-size:22px;
+}
+
+.profile-name-field label{
+    font-size:20px;
+}
+
+.profile-name-fields input{
+    min-height:64px;
+    padding:14px 12px;
+    font-size:20px;
 }
 
 .profile-middle-name{
@@ -5080,10 +5172,15 @@ footer{
     .profile-container h2{font-size:30px;margin-bottom:4px;}
     .profile-container p{margin-bottom:10px;font-size:17px;}
     .profile-container h3{margin:8px 0;font-size:20px;}
-    #studentName,
+    #studentFirstName,
+    #studentLastName,
+    #studentMiddleInitial,
     #studentClassroomCode,
     #studentGender{min-height:44px;padding:9px 14px;font-size:17px;}
     .profile-container > label{margin-top:4px;font-size:16px;}
+    .profile-name-fields{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(72px,.55fr);gap:8px;}
+    .profile-name-field label{margin-top:4px;font-size:15px;}
+    .profile-name-fields input{min-height:44px;padding:8px;font-size:16px;}
     .avatar-grid{grid-template-columns:repeat(4,minmax(80px,1fr));gap:10px;}
     .avatar-card{min-height:82px;padding:8px;}
     .avatar-card img{width:62px;height:62px;}
@@ -5163,4 +5260,4 @@ footer{
     }
 }
 
-/* 5 it expert */
+/* 5263 full force */
