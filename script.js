@@ -40,6 +40,13 @@ const teacherNameDisplay = document.getElementById("teacherNameDisplay");
 const teacherSidebarName = document.getElementById("teacherSidebarName");
 const teacherClassroomCode = document.getElementById("teacherClassroomCode");
 const teacherLogoutBtn = document.getElementById("teacherLogoutBtn");
+const teacherChangePasswordBtn = document.getElementById("teacherChangePasswordBtn");
+const teacherChangePasswordModal = document.getElementById("teacherChangePasswordModal");
+const teacherChangePasswordForm = document.getElementById("teacherChangePasswordForm");
+const teacherNewPassword = document.getElementById("teacherNewPassword");
+const teacherNewPasswordConfirm = document.getElementById("teacherNewPasswordConfirm");
+const teacherChangePasswordMessage = document.getElementById("teacherChangePasswordMessage");
+const teacherChangePasswordCancelBtn = document.getElementById("teacherChangePasswordCancelBtn");
 const teacherDashboardHomeBtn = document.getElementById("teacherDashboardHomeBtn");
 const teacherDashboardRefreshBtn = document.getElementById("teacherDashboardRefreshBtn");
 const teacherDashboardPrintBtn = document.getElementById("teacherDashboardPrintBtn");
@@ -588,7 +595,7 @@ teacherLoginForm.addEventListener("submit", (event) => {
 });
 
 if (teacherForgotPasswordBtn) {
-    teacherForgotPasswordBtn.addEventListener("click", sendTeacherPasswordReset);
+    teacherForgotPasswordBtn.addEventListener("click", beginTeacherInAppPasswordReset);
 }
 
 if (teacherUseEmailLoginBtn) {
@@ -599,18 +606,6 @@ if (teacherUseEmailLoginBtn) {
         teacherEmail.value = sessionEmail || "";
         teacherPassword.value = "";
         teacherEmail.focus();
-    });
-}
-
-if (supabaseClient) {
-    supabaseClient.auth.onAuthStateChange(event => {
-        if (event === "PASSWORD_RECOVERY") {
-            clearTeacherError();
-            teacherLoginForm.reset();
-            setTeacherMode("resetPassword");
-            showScreen(teacherScreen);
-            teacherPassword.focus();
-        }
     });
 }
 
@@ -625,6 +620,182 @@ document.querySelectorAll(".password-toggle-btn").forEach(button => {
         button.setAttribute("aria-label", isPasswordVisible ? "Show password" : "Hide password");
     });
 });
+
+function setTeacherChangePasswordMessage(message, isError = false) {
+    if (!teacherChangePasswordMessage) return;
+    teacherChangePasswordMessage.textContent = message;
+    teacherChangePasswordMessage.classList.toggle("is-error", isError);
+}
+
+async function beginTeacherInAppPasswordReset() {
+    const expectedEmail = (
+        teacherMode === "unlock"
+            ? getTeacherSession()
+            : teacherEmail.value.trim().toLowerCase()
+    ) || "";
+    if (!expectedEmail) {
+        setTeacherError("Enter your account email first.", teacherEmail);
+        teacherEmail.focus();
+        return;
+    }
+    if (!supabaseClient) {
+        setTeacherError("Password changes are unavailable. Please refresh and try again.", teacherPassword);
+        return;
+    }
+
+    if (teacherForgotPasswordBtn) teacherForgotPasswordBtn.disabled = true;
+    try {
+        const { data, error } = await supabaseClient.auth.getUser();
+        if (error) throw error;
+        const signedInEmail = data.user?.email?.trim().toLowerCase();
+        if (!signedInEmail || signedInEmail !== expectedEmail) {
+            setTeacherError(
+                "There is no verified teacher session for this account. Log in first, then use Change Password in the dashboard.",
+                teacherMode === "unlock" ? teacherPassword : teacherEmail
+            );
+            return;
+        }
+
+        clearTeacherError();
+        const verifiedEmail = signedInEmail;
+        teacherLoginForm.reset();
+        setTeacherMode("resetPassword");
+        teacherEmail.value = verifiedEmail;
+        teacherUnlockEmail.textContent = `Verified account: ${verifiedEmail}`;
+        teacherUnlockEmail.classList.remove("teacher-hidden");
+        showScreen(teacherScreen);
+        teacherPassword.focus();
+    } catch (error) {
+        console.error("Unable to verify teacher session for password change.", error);
+        setTeacherError(error.message || "Unable to verify the teacher session. Please log in again.", teacherMode === "unlock" ? teacherPassword : teacherEmail);
+    } finally {
+        if (teacherForgotPasswordBtn) teacherForgotPasswordBtn.disabled = false;
+    }
+}
+
+async function handleTeacherPasswordReset() {
+    const password = teacherPassword.value;
+    const confirmation = teacherConfirmPassword.value;
+    const expectedEmail = teacherEmail.value.trim().toLowerCase();
+    if (password.length < 8) {
+        setTeacherError("Use at least 8 characters for the new password.", teacherPassword);
+        teacherPassword.focus();
+        return;
+    }
+    if (password !== confirmation) {
+        setTeacherError("The passwords do not match.", teacherConfirmPassword);
+        teacherConfirmPassword.focus();
+        return;
+    }
+    if (!supabaseClient) {
+        setTeacherError("Password changes are unavailable. Please refresh and try again.", teacherPassword);
+        return;
+    }
+
+    teacherSubmitBtn.disabled = true;
+    try {
+        const { data: sessionData, error: sessionError } = await supabaseClient.auth.getUser();
+        if (sessionError) throw sessionError;
+        const verifiedUser = sessionData.user;
+        const signedInEmail = verifiedUser?.email?.trim().toLowerCase();
+        if (!verifiedUser || !signedInEmail || signedInEmail !== expectedEmail) {
+            setTeacherError("Your verified teacher session has expired. Log in again before changing the password.", teacherPassword);
+            return;
+        }
+
+        const { error } = await supabaseClient.auth.updateUser({ password });
+        if (error) throw error;
+        clearTeacherError();
+        teacherLoginForm.reset();
+        setTeacherMode("login");
+        teacherEmail.value = signedInEmail;
+        showScreen(teacherScreen);
+        showNotification("Password updated. Log in with your new password.");
+        teacherPassword.focus();
+    } catch (error) {
+        console.error("Unable to update teacher password from the login screen.", error);
+        setTeacherError(error.message || "Unable to update the password. Please try again.", teacherPassword);
+    } finally {
+        teacherSubmitBtn.disabled = false;
+    }
+}
+
+function closeTeacherChangePasswordModal() {
+    if (teacherChangePasswordModal) teacherChangePasswordModal.hidden = true;
+    teacherChangePasswordForm?.reset();
+    setTeacherChangePasswordMessage("");
+    teacherChangePasswordBtn?.focus();
+}
+
+if (teacherChangePasswordBtn) {
+    teacherChangePasswordBtn.addEventListener("click", () => {
+        if (!getTeacherSession() || !supabaseClient || !teacherDashboard.classList.contains("active")) {
+            showNotification("Log in to the teacher dashboard before changing the password.");
+            return;
+        }
+        setTeacherChangePasswordMessage("");
+        teacherChangePasswordForm?.reset();
+        teacherChangePasswordModal.hidden = false;
+        teacherNewPassword.focus();
+    });
+}
+
+if (teacherChangePasswordCancelBtn) {
+    teacherChangePasswordCancelBtn.addEventListener("click", closeTeacherChangePasswordModal);
+}
+
+if (teacherChangePasswordModal) {
+    teacherChangePasswordModal.addEventListener("click", event => {
+        if (event.target === teacherChangePasswordModal) closeTeacherChangePasswordModal();
+    });
+    teacherChangePasswordModal.addEventListener("keydown", event => {
+        if (event.key === "Escape") closeTeacherChangePasswordModal();
+    });
+}
+
+if (teacherChangePasswordForm) {
+    teacherChangePasswordForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        const password = teacherNewPassword.value;
+        const confirmation = teacherNewPasswordConfirm.value;
+        if (password.length < 8) {
+            setTeacherChangePasswordMessage("Use at least 8 characters for the new password.", true);
+            teacherNewPassword.focus();
+            return;
+        }
+        if (password !== confirmation) {
+            setTeacherChangePasswordMessage("The passwords do not match.", true);
+            teacherNewPasswordConfirm.focus();
+            return;
+        }
+        if (!supabaseClient) {
+            setTeacherChangePasswordMessage("Password changes are unavailable. Please refresh and try again.", true);
+            return;
+        }
+
+        const submitButton = teacherChangePasswordForm.querySelector('button[type="submit"]');
+        if (submitButton) submitButton.disabled = true;
+        try {
+            const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+            if (userError) throw userError;
+            const signedInEmail = userData.user?.email?.trim().toLowerCase();
+            if (!signedInEmail || signedInEmail !== getTeacherSession()?.trim().toLowerCase()) {
+                setTeacherChangePasswordMessage("Your teacher session could not be verified. Log in again before changing the password.", true);
+                return;
+            }
+
+            const { error } = await supabaseClient.auth.updateUser({ password });
+            if (error) throw error;
+            closeTeacherChangePasswordModal();
+            showNotification("Teacher password updated successfully.");
+        } catch (error) {
+            console.error("Unable to update teacher password.", error);
+            setTeacherChangePasswordMessage(error.message || "Unable to update the password. Please try again.", true);
+        } finally {
+            if (submitButton) submitButton.disabled = false;
+        }
+    });
+}
 
 // Clear the complete form error when the teacher returns to any credential field.
 [teacherEmail, teacherPassword, teacherConfirmPassword, teacherFullName].forEach(input => {
@@ -1175,6 +1346,8 @@ function setTeacherMode(mode){
     const isRegister = mode === "register";
     const isUnlock = mode === "unlock";
     const isPasswordReset = mode === "resetPassword";
+    teacherPassword.autocomplete = isRegister || isPasswordReset ? "new-password" : "current-password";
+    teacherConfirmPassword.autocomplete = "new-password";
 
     if (isUnlock) {
         teacherFormTitle.textContent = "Enter the Password";
@@ -1186,9 +1359,8 @@ function setTeacherMode(mode){
         teacherPassword.placeholder = "Enter the password";
         teacherLoginForm.classList.add("teacher-form--unlock");
     } else if (isPasswordReset) {
-        teacherUnlockEmail.classList.add("teacher-hidden");
         teacherFormTitle.textContent = "Set a New Password";
-        teacherFormSubtitle.textContent = "Choose a new password for your teacher account.";
+        teacherFormSubtitle.textContent = "Enter and confirm a new password for your verified teacher account.";
         teacherFormSubtitle.classList.remove("teacher-hidden");
         teacherSubmitBtn.textContent = "Update Password";
         teacherPassword.placeholder = "New password";
@@ -1218,7 +1390,7 @@ function setTeacherMode(mode){
         teacherForgotPasswordBtn.classList.toggle("teacher-hidden", isRegister || isPasswordReset);
     }
     if (teacherUseEmailLoginBtn) {
-        teacherUseEmailLoginBtn.classList.toggle("teacher-hidden", !isUnlock);
+        teacherUseEmailLoginBtn.classList.toggle("teacher-hidden", !isUnlock || isPasswordReset);
     }
     if (teacherSwitchRow) {
         teacherSwitchRow.classList.toggle("teacher-hidden", isUnlock || isPasswordReset);
@@ -1308,11 +1480,6 @@ function restoreTeacherSession(){
 
     currentTeacherUsername = user.fullName || user.email;
     return true;
-}
-
-function getTeacherAuthRedirectUrl() {
-    if (window.location.protocol === "file:") return null;
-    return `${window.location.origin}${window.location.pathname}`;
 }
 
 function saveTeacherProfile(authUser, preferredName = "") {
@@ -1486,79 +1653,6 @@ async function handleTeacherLogin(){
     teacherPassword.value = "";
     showTeacherDashboard();
     showNotification("Welcome back, " + currentTeacherUsername + "!");
-}
-
-async function sendTeacherPasswordReset() {
-    const email = (teacherMode === "unlock" ? getTeacherSession() : teacherEmail.value.trim().toLowerCase()) || "";
-    const feedbackInput = teacherMode === "unlock" ? teacherPassword : teacherEmail;
-    if (!email) {
-        feedbackInput.focus();
-        setTeacherError("Enter your email address first.", feedbackInput);
-        return;
-    }
-    if (!supabaseClient) {
-        setTeacherError("Password reset is unavailable. Please refresh and try again.", feedbackInput);
-        return;
-    }
-    const redirectTo = getTeacherAuthRedirectUrl();
-    if (!redirectTo) {
-        setTeacherError("Open QuizLand from its website or local server to reset your password by email.", feedbackInput);
-        return;
-    }
-
-    let error;
-    try {
-        ({ error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-            redirectTo
-        }));
-    } catch (requestError) {
-        console.error("Teacher password reset request failed.", requestError);
-        setTeacherError("Unable to connect to the account service. Please try again.", feedbackInput);
-        return;
-    }
-    if (error) {
-        setTeacherError(error.message || "Unable to send the password reset email.", feedbackInput);
-        return;
-    }
-    showNotification("If an account exists for that email, a password reset link has been sent.", 6000);
-}
-
-async function handleTeacherPasswordReset() {
-    const password = teacherPassword.value;
-    const confirmPassword = teacherConfirmPassword.value;
-    if (!password || !confirmPassword) {
-        setTeacherError("Enter and confirm your new password.", !password ? teacherPassword : teacherConfirmPassword);
-        return;
-    }
-    if (password !== confirmPassword) {
-        setTeacherError("Passwords do not match.", teacherConfirmPassword);
-        return;
-    }
-    if (!supabaseClient) {
-        setTeacherError("Password reset is unavailable. Please refresh and try again.", teacherPassword);
-        return;
-    }
-
-    let data;
-    let error;
-    try {
-        ({ data, error } = await supabaseClient.auth.updateUser({ password }));
-    } catch (requestError) {
-        console.error("Teacher password update request failed.", requestError);
-        setTeacherError("Unable to connect to the account service. Please try again.", teacherPassword);
-        return;
-    }
-    if (error) {
-        setTeacherError(error.message || "Unable to update the password.", teacherPassword);
-        return;
-    }
-    const email = data.user?.email || "";
-    clearTeacherSession();
-    setTeacherMode("login");
-    teacherLoginForm.reset();
-    teacherEmail.value = email;
-    teacherPassword.focus();
-    showNotification("Password updated. Log in with your new password.");
 }
 
 function setTeacherError(message, targetInput = null){
@@ -5751,7 +5845,6 @@ window.addEventListener("load",()=>{
 });
 
 
-// 5185
-// with approval 4724
-// 5249
+
 // 5707 full force
+// 5850
