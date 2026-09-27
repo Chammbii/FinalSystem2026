@@ -219,14 +219,14 @@
                     </div>
 
                     <div class="input-wrapper">
-                        <input type="password" id="teacherPassword" placeholder="Password">
+                        <input type="password" id="teacherPassword" placeholder="Password" autocomplete="current-password">
                         <button type="button" class="password-toggle-btn" data-toggle-target="teacherPassword" aria-label="Show password">Show</button>
                         <span class="input-error-icon" aria-hidden="true">⚠</span>
                         <div class="input-error-message"></div>
                     </div>
 
                     <div class="input-wrapper teacher-hidden">
-                        <input type="password" id="teacherConfirmPassword" placeholder="Confirm Password">
+                        <input type="password" id="teacherConfirmPassword" placeholder="Confirm Password" autocomplete="new-password">
                         <button type="button" class="password-toggle-btn" data-toggle-target="teacherConfirmPassword" aria-label="Show password">Show</button>
                         <span class="input-error-icon" aria-hidden="true">⚠</span>
                         <div class="input-error-message"></div>
@@ -282,8 +282,8 @@
                     </div>
                     <button id="teacherDashboardRefreshBtn" class="teacher-sidebar-btn teacher-sidebar-btn--refresh" type="button"><span class="teacher-sidebar-icon">↻</span><span class="teacher-sidebar-label">Refresh</span></button>
                     <button id="teacherNotificationsBtn" class="teacher-sidebar-btn teacher-sidebar-btn--notifications" type="button"><span class="teacher-sidebar-icon">🔔</span><span class="teacher-sidebar-label">Notifications</span><span id="teacherNotificationBadge" class="teacher-notification-badge" hidden>0</span></button>
-                    <button id="teacherCustomizeBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">✦</span><span class="teacher-sidebar-label">Add Quiz</span></button>
-                    <button id="teacherAddLessonBtn" class="teacher-sidebar-btn teacher-sidebar-btn--accent" type="button"><span class="teacher-sidebar-icon">＋</span><span class="teacher-sidebar-label">Add Lesson</span></button>
+                    <button id="teacherCustomizeBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">＋</span><span class="teacher-sidebar-label">Add Quiz</span></button>
+                    <button id="teacherAddLessonBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">＋</span><span class="teacher-sidebar-label">Add Lesson</span></button>
                     <button id="teacherDashboardPrintBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">▣</span><span class="teacher-sidebar-label">Print</span></button>
                     <button id="teacherDashboardSettingsBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">⚙</span><span class="teacher-sidebar-label">Settings</span></button>
                     <button id="teacherDashboardHomeBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">⌂</span><span class="teacher-sidebar-label">Home</span></button>
@@ -293,6 +293,7 @@
                         <span class="teacher-sidebar-avatar">★</span>
                         <span class="teacher-sidebar-label"><strong id="teacherSidebarName">Teacher</strong><small>Signed in</small></span>
                     </div>
+                    <button id="teacherChangePasswordBtn" class="tdash-btn tdash-btn--soft" type="button">Change Password</button>
                     <button id="teacherLogoutBtn" class="tdash-btn tdash-btn--solid" type="button">Logout</button>
                 </div>
             </aside>
@@ -551,6 +552,24 @@
                 <div class="teacher-customize-actions">
                     <button id="teacherNotificationsCloseBtn" class="tdash-btn tdash-btn--ghost" type="button">Close</button>
                 </div>
+            </div>
+        </div>
+
+        <div id="teacherChangePasswordModal" class="teacher-customize-modal" hidden>
+            <div class="teacher-customize-card teacher-password-card" role="dialog" aria-modal="true" aria-labelledby="teacherChangePasswordTitle">
+                <h3 id="teacherChangePasswordTitle">Change Password</h3>
+                <p class="teacher-lesson-help">Set a new password for your signed-in teacher account.</p>
+                <form id="teacherChangePasswordForm" class="teacher-password-form">
+                    <label for="teacherNewPassword">New password</label>
+                    <input id="teacherNewPassword" type="password" autocomplete="new-password" minlength="8" required>
+                    <label for="teacherNewPasswordConfirm">Confirm new password</label>
+                    <input id="teacherNewPasswordConfirm" type="password" autocomplete="new-password" minlength="8" required>
+                    <p id="teacherChangePasswordMessage" class="teacher-customize-message" role="status" aria-live="polite"></p>
+                    <div class="teacher-customize-actions">
+                        <button id="teacherChangePasswordCancelBtn" class="tdash-btn tdash-btn--ghost" type="button">Cancel</button>
+                        <button class="tdash-btn tdash-btn--solid" type="submit">Save Password</button>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -1076,7 +1095,7 @@
 
 </html>
 
-  <!-- with approval 1011 -->
 
-  <!-- 1059 little improvement -->
+
    <!-- 1082 fullforce -->
+    <!-- 1101 -->
