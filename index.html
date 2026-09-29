@@ -117,6 +117,14 @@
 
     </section>
 
+    <div id="gameLoadingModal" class="game-loading-modal">
+        <div class="game-loading-card" role="status" aria-live="polite" aria-label="Loading game">
+            <div class="game-loading-spinner" aria-hidden="true"></div>
+            <h2>Getting ready!</h2>
+            <p>Loading your learning adventure...</p>
+        </div>
+    </div>
+
 
 
     <!-- LESSON SCREEN -->
@@ -284,6 +292,8 @@
                     <button id="teacherNotificationsBtn" class="teacher-sidebar-btn teacher-sidebar-btn--notifications" type="button"><span class="teacher-sidebar-icon">🔔</span><span class="teacher-sidebar-label">Notifications</span><span id="teacherNotificationBadge" class="teacher-notification-badge" hidden>0</span></button>
                     <button id="teacherCustomizeBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">＋</span><span class="teacher-sidebar-label">Add Quiz</span></button>
                     <button id="teacherAddLessonBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">＋</span><span class="teacher-sidebar-label">Add Lesson</span></button>
+                    <button id="teacherActivityLogBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">◷</span><span class="teacher-sidebar-label">Activity Log</span></button>
+                    <button id="teacherArchiveBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">▤</span><span class="teacher-sidebar-label">Archive</span></button>
                     <button id="teacherDashboardPrintBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">▣</span><span class="teacher-sidebar-label">Print</span></button>
                     <button id="teacherDashboardSettingsBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">⚙</span><span class="teacher-sidebar-label">Settings</span></button>
                     <button id="teacherDashboardHomeBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">⌂</span><span class="teacher-sidebar-label">Home</span></button>
@@ -377,6 +387,28 @@
                 </div>
             </section>
 
+            <section class="tdash-panel tdash-panel--wide" id="teacherStudentAnalyticsPanel">
+                <div class="tdash-panel-head">
+                    <h3>Student Learning Analytics</h3>
+                    <p id="teacherStudentAnalyticsSubtitle">Choose the three-dot button beside a student’s name to see the specific lesson items they viewed and quiz items they missed, grouped by lesson, with score and date/time.</p>
+                </div>
+                <div class="quiz-history-table-wrap">
+                    <table id="teacherStudentAnalyticsTable">
+                        <thead>
+                            <tr>
+                                <th>Student weakness</th>
+                                <th>Date &amp; time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="quiz-history-empty">
+                                <td colspan="2">Select a student to view learning analytics.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
             <section class="tdash-panel tdash-panel--wide" id="quizHistoryPanel">
                 <div class="tdash-panel-head">
                     <h3>Quiz History</h3>
@@ -397,28 +429,6 @@
                         <tbody>
                             <tr class="quiz-history-empty">
                                 <td colspan="6">No student selected yet.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <section class="tdash-panel tdash-panel--wide" id="activityLogPanel">
-                <div class="tdash-panel-head">
-                    <h3>Activity Log</h3>
-                    <p id="activityLogSubtitle">Select a student to view recent learning activity.</p>
-                </div>
-                <div class="quiz-history-table-wrap">
-                    <table id="teacherActivityLogTable">
-                        <thead>
-                            <tr>
-                                <th>Date &amp; time</th>
-                                <th>Activity</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="quiz-history-empty">
-                                <td colspan="2">No student selected yet.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -466,6 +476,56 @@
             </div>
         </div>
 
+        <div id="teacherArchiveModal" class="teacher-archive-modal" hidden>
+            <div class="teacher-archive-card" role="dialog" aria-modal="true" aria-labelledby="teacherArchiveTitle">
+                <div class="teacher-archive-header">
+                    <div>
+                        <h3 id="teacherArchiveTitle">Archived Students</h3>
+                        <p>Choose an archive date to view removed students.</p>
+                    </div>
+                    <button id="teacherArchiveCloseBtn" class="teacher-archive-close" type="button" aria-label="Close archive">×</button>
+                </div>
+                <div id="teacherArchiveDates" class="teacher-archive-dates"></div>
+                <div class="teacher-archive-actions">
+                    <button id="teacherArchiveDoneBtn" class="tdash-btn tdash-btn--ghost" type="button">Done</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="teacherActivityLogModal" class="teacher-archive-modal" hidden>
+            <div class="teacher-archive-card teacher-activity-log-card" role="dialog" aria-modal="true" aria-labelledby="teacherActivityLogTitle">
+                <div class="teacher-archive-header">
+                    <div>
+                        <h3 id="teacherActivityLogTitle">Activity Log</h3>
+                        <p id="activityLogSubtitle">Select a student to view recent learning activity.</p>
+                    </div>
+                    <button id="teacherActivityLogCloseBtn" class="teacher-archive-close" type="button" aria-label="Close activity log">×</button>
+                </div>
+                <div class="teacher-activity-log-student-picker">
+                    <h4>Choose a student</h4>
+                    <div id="teacherActivityLogStudents" class="teacher-activity-log-students" role="group" aria-label="Students"></div>
+                </div>
+                <div class="quiz-history-table-wrap teacher-activity-log-table-wrap">
+                    <table id="teacherActivityLogTable">
+                        <thead>
+                            <tr>
+                                <th>Date &amp; time</th>
+                                <th>Activity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="quiz-history-empty">
+                                <td colspan="2">No student selected yet.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="teacher-archive-actions">
+                    <button id="teacherActivityLogDoneBtn" class="tdash-btn tdash-btn--ghost" type="button">Done</button>
+                </div>
+            </div>
+        </div>
+
         <section id="teacherPrintReport" class="teacher-print-report" aria-hidden="true"></section>
 
         <div id="teacherCustomizeModal" class="teacher-customize-modal" hidden>
@@ -487,6 +547,8 @@
                     </select>
                     <label for="customQuestionPrompt">Question</label>
                     <input id="customQuestionPrompt" type="text" maxlength="160" placeholder="Which answer is correct?" required>
+                    <label for="customQuestionAudio">Question audio (optional, up to 1 MB)</label>
+                    <input id="customQuestionAudio" type="file" accept="audio/*">
                     <label for="customQuestionCorrect">Correct answer</label>
                     <input id="customQuestionCorrect" type="text" maxlength="80" placeholder="Correct answer" required>
                     <label>Multiple-choice answers</label>
@@ -512,6 +574,11 @@
                 </form>
                 <div>
                     <h4>Your Added Quiz Questions</h4>
+                    <div class="custom-question-level-tabs" role="group" aria-label="Filter quiz questions by level">
+                        <button class="custom-question-level-tab is-active" type="button" aria-pressed="true" data-question-level="easy">Easy</button>
+                        <button class="custom-question-level-tab" type="button" aria-pressed="false" data-question-level="medium">Normal</button>
+                        <button class="custom-question-level-tab" type="button" aria-pressed="false" data-question-level="hard">Hard</button>
+                    </div>
                     <div id="customQuestionList" class="custom-question-list"></div>
                 </div>
             </div>
@@ -520,14 +587,14 @@
         <div id="teacherLessonModal" class="teacher-customize-modal" hidden>
             <div class="teacher-customize-card teacher-lesson-card" role="dialog" aria-modal="true" aria-labelledby="teacherLessonTitle">
                 <h3 id="teacherLessonTitle">Add a Lesson</h3>
-                <p class="teacher-lesson-help">Create a lesson such as Animals. Add a cover picture, then add each animal picture and its name.</p>
+                <p class="teacher-lesson-help">Create a lesson such as Animals. Add a cover picture, then add each item’s picture and name. You can also attach an optional audio clip to each item.</p>
                 <form id="teacherLessonForm" class="teacher-customize-form">
                     <label for="customLessonName">Lesson name</label>
                     <input id="customLessonName" type="text" maxlength="50" placeholder="Animals" required>
                     <label for="customLessonCover">Cover picture</label>
                     <input id="customLessonCover" type="file" accept="image/*" required>
                     <div class="teacher-lesson-items-head">
-                        <label>Lesson pictures and names</label>
+                        <label>Lesson pictures, names, and audio</label>
                         <button id="addLessonItemBtn" class="tdash-btn tdash-btn--soft" type="button">Add picture</button>
                     </div>
                     <div id="customLessonItems" class="custom-lesson-items"></div>
@@ -686,11 +753,11 @@
 
             <div class="settings-body">
 
-                <section class="settings-section" aria-labelledby="settingsSoundTitle">
-                    <h3 id="settingsSoundTitle" class="settings-section-title">
+                <details class="settings-section">
+                    <summary id="settingsSoundTitle" class="settings-section-title">
                         <i class="fa-solid fa-music"></i>
-                        Sound
-                    </h3>
+                        <span>Sound</span>
+                    </summary>
 
                     <div class="setting-row">
                         <div class="setting-copy">
@@ -729,13 +796,13 @@
                         </div>
                         <input id="sfxVolume" class="setting-range" type="range" min="0" max="100" value="10">
                     </div>
-                </section>
+                </details>
 
-                <section class="settings-section" aria-labelledby="settingsLearningTitle">
-                    <h3 id="settingsLearningTitle" class="settings-section-title">
+                <details class="settings-section">
+                    <summary id="settingsLearningTitle" class="settings-section-title">
                         <i class="fa-solid fa-graduation-cap"></i>
-                        Learning
-                    </h3>
+                        <span>Learning</span>
+                    </summary>
 
                     <div class="setting-row">
                         <div class="setting-copy">
@@ -751,7 +818,7 @@
                     <div class="setting-row">
                         <div class="setting-copy">
                             <span class="setting-label">Microphone</span>
-                            <span class="setting-hint">Use your voice for Speak Answer in lessons</span>
+                            <span class="setting-hint">Use your voice for Speak Answer in lessons and quizzes</span>
                         </div>
                         <label class="switch" for="microphoneToggle">
                             <input id="microphoneToggle" type="checkbox" checked>
@@ -779,13 +846,13 @@
                             <span class="switch-track" aria-hidden="true"></span>
                         </label>
                     </div>
-                </section>
+                </details>
 
-                <section class="settings-section" aria-labelledby="settingsDisplayTitle">
-                    <h3 id="settingsDisplayTitle" class="settings-section-title">
+                <details class="settings-section">
+                    <summary id="settingsDisplayTitle" class="settings-section-title">
                         <i class="fa-solid fa-display"></i>
-                        Display
-                    </h3>
+                        <span>Display</span>
+                    </summary>
 
                     <div class="setting-row">
                         <div class="setting-copy">
@@ -797,7 +864,7 @@
                             <span class="switch-track" aria-hidden="true"></span>
                         </label>
                     </div>
-                </section>
+                </details>
 
             </div>
 
@@ -876,6 +943,9 @@
             <button id="voiceBtn" class="voice-btn" type="button">
                 🔊 Listen
             </button>
+            <button id="lessonAudioBtn" class="voice-btn voice-btn--audio" type="button" hidden>
+                🔉 Sound
+            </button>
             <button id="lessonSpeakBtn" class="voice-btn voice-btn--speak" type="button">
                 🎤 Speak Answer
             </button>
@@ -905,13 +975,25 @@
 
         <button id="lessonHomeBtn" class="back-btn">
 
-            🏠 Back to Menu
+            🏠 Back to Lesson Menu
 
         </button>
 
     </div>
 
 </section>
+
+<div id="lessonHomeConfirmModal" class="lesson-home-confirm-modal" hidden>
+    <div class="lesson-home-confirm-card" role="dialog" aria-modal="true" aria-labelledby="lessonHomeConfirmTitle" aria-describedby="lessonHomeConfirmMessage">
+        <div class="lesson-home-confirm-icon" aria-hidden="true">?</div>
+        <h2 id="lessonHomeConfirmTitle">Are you sure?</h2>
+        <p id="lessonHomeConfirmMessage">Do you want to leave the lesson menu and go back to Home?</p>
+        <div class="lesson-home-confirm-actions">
+            <button id="lessonHomeCancelBtn" class="tdash-btn tdash-btn--ghost" type="button">Stay Here</button>
+            <button id="lessonHomeConfirmBtn" class="tdash-btn tdash-btn--solid" type="button">Yes, Go Home</button>
+        </div>
+    </div>
+</div>
 
 <!-- ===================================================== -->
 <!-- QUIZ SCREEN -->
@@ -988,11 +1070,15 @@
 
         <!-- Voice -->
 
-        <button id="quizVoiceBtn" class="voice-btn">
-
-            🔊 Read Question
-
-        </button>
+        <div class="quiz-voice-controls">
+            <button id="quizVoiceBtn" class="voice-btn" type="button">
+                🔊 Read Question
+            </button>
+            <button id="quizVoiceInteractionBtn" class="voice-btn quiz-voice-interaction-btn" type="button" aria-pressed="false">
+                🎤 Answer by Voice
+            </button>
+        </div>
+        <p id="quizVoiceStatus" class="quiz-voice-status" role="status" aria-live="polite"></p>
 
         <!-- Answer Cards -->
 
@@ -1099,3 +1185,5 @@
 
    <!-- 1082 fullforce -->
     <!-- 1101 -->
+     <!-- 1138 -->
+     <!--1189 defense  -->
