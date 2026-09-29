@@ -13,7 +13,6 @@ const menuScreen = document.getElementById("menuScreen");
 
 // ---------- BUTTONS ----------
 const startBtn = document.getElementById("startBtn");
-const gameLoadingModal = document.getElementById("gameLoadingModal");
 const continueBtn = document.getElementById("continueBtn");
 const profileBackHome = document.getElementById("profileBackHome");
 const backHome = document.getElementById("backHome");
@@ -515,9 +514,12 @@ function updateStudentHud() {
 // ======================================================
 
 startBtn.addEventListener("click", () => {
+    if (!startBtn || startBtn.disabled) return;
+    startBtn.disabled = true;
     showScreen(profileScreen);
     loadSavedStudentProfile();
     syncProfileApproval();
+    startBtn.disabled = false;
 });
 
 if (profileBackHome) {
@@ -6741,21 +6743,24 @@ function completedCategories(){
 // Optional Welcome Back
 // -------------------------------
 
-window.addEventListener("load", () => {
-    window.setTimeout(() => {
-        if (gameLoadingModal) gameLoadingModal.hidden = true;
-        resumeStudentSession();
+window.addEventListener("load",()=>{
 
-        const total = completedCategories();
-        if (total > 0) {
-            console.log("Completed Categories:", total);
-        }
-    }, 2500);
+    resumeStudentSession();
+
+    const total = completedCategories();
+
+    if(total > 0){
+
+        console.log(
+            "Completed Categories:",
+            total
+        );
+
+    }
+
 });
-
-
 
 
 // 5850
 // 6429
-// 6761 defense full force
+// 6766 defense full force
