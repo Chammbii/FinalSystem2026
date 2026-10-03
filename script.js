@@ -50,6 +50,7 @@ const teacherChangePasswordCancelBtn = document.getElementById("teacherChangePas
 const teacherDashboardHomeBtn = document.getElementById("teacherDashboardHomeBtn");
 const teacherDashboardRefreshBtn = document.getElementById("teacherDashboardRefreshBtn");
 const teacherActivityLogBtn = document.getElementById("teacherActivityLogBtn");
+const teacherAnalyticsBtn = document.getElementById("teacherAnalyticsBtn");
 const teacherArchiveBtn = document.getElementById("teacherArchiveBtn");
 const teacherDashboardPrintBtn = document.getElementById("teacherDashboardPrintBtn");
 const teacherDashboardSettingsBtn = document.getElementById("teacherDashboardSettingsBtn");
@@ -94,14 +95,36 @@ const teacherActivityLogModal = document.getElementById("teacherActivityLogModal
 const teacherActivityLogCloseBtn = document.getElementById("teacherActivityLogCloseBtn");
 const teacherActivityLogDoneBtn = document.getElementById("teacherActivityLogDoneBtn");
 const teacherActivityLogStudents = document.getElementById("teacherActivityLogStudents");
+const teacherAnalyticsModal = document.getElementById("teacherAnalyticsModal");
+const teacherAnalyticsCloseBtn = document.getElementById("teacherAnalyticsCloseBtn");
+const teacherAnalyticsStudentSearch = document.getElementById("teacherAnalyticsStudentSearch");
+const teacherAnalyticsStudents = document.getElementById("teacherAnalyticsStudents");
+const teacherAnalyticsStudentName = document.getElementById("teacherAnalyticsStudentName");
+const teacherAnalyticsMonth = document.getElementById("teacherAnalyticsMonth");
+const teacherAnalyticsYear = document.getElementById("teacherAnalyticsYear");
+const teacherAnalyticsPreviousMonth = document.getElementById("teacherAnalyticsPreviousMonth");
+const teacherAnalyticsNextMonth = document.getElementById("teacherAnalyticsNextMonth");
+const teacherAnalyticsCalendarDays = document.getElementById("teacherAnalyticsCalendarDays");
+const teacherAnalyticsSelectedDate = document.getElementById("teacherAnalyticsSelectedDate");
+const teacherAnalyticsDateDetails = document.getElementById("teacherAnalyticsDateDetails");
+const ANALYTICS_MIN_YEAR = 2026;
+const ANALYTICS_MAX_YEAR = 2030;
+const todayForAnalytics = new Date();
+let selectedAnalyticsYear = Math.min(ANALYTICS_MAX_YEAR, Math.max(ANALYTICS_MIN_YEAR, todayForAnalytics.getFullYear()));
+let selectedAnalyticsMonth = selectedAnalyticsYear === todayForAnalytics.getFullYear()
+    ? todayForAnalytics.getMonth()
+    : selectedAnalyticsYear === ANALYTICS_MIN_YEAR ? 0 : 11;
+let selectedAnalyticsDate = toDateKey(new Date(
+    selectedAnalyticsYear,
+    selectedAnalyticsMonth,
+    selectedAnalyticsYear === todayForAnalytics.getFullYear() ? todayForAnalytics.getDate() : 1
+).getTime());
 const teacherStudentProgressTable = document.getElementById("teacherStudentProgressTable");
 const teacherProgressChart = document.getElementById("teacherProgressChart");
 const teacherStarsChart = document.getElementById("teacherStarsChart");
 const teacherDailyStarsChart = document.getElementById("teacherDailyStarsChart");
 const teacherQuizHistoryTable = document.getElementById("teacherQuizHistoryTable");
 const quizHistorySubtitle = document.getElementById("quizHistorySubtitle");
-const teacherStudentAnalyticsTable = document.getElementById("teacherStudentAnalyticsTable");
-const teacherStudentAnalyticsSubtitle = document.getElementById("teacherStudentAnalyticsSubtitle");
 const teacherActivityLogTable = document.getElementById("teacherActivityLogTable");
 const activityLogSubtitle = document.getElementById("activityLogSubtitle");
 let selectedActivityLogStudent = null;
@@ -1025,6 +1048,9 @@ if (teacherActivityLogBtn) {
         teacherActivityLogModal.hidden = false;
     });
 }
+if (teacherAnalyticsBtn) {
+    teacherAnalyticsBtn.addEventListener("click", () => openTeacherAnalytics());
+}
 if (teacherDashboardSettingsBtn) {
     teacherDashboardSettingsBtn.addEventListener("click", openSettingsModal);
 }
@@ -1065,6 +1091,94 @@ function closeTeacherActivityLog() {
 [teacherActivityLogCloseBtn, teacherActivityLogDoneBtn].forEach(button => {
     button?.addEventListener("click", closeTeacherActivityLog);
 });
+
+function closeTeacherAnalytics() {
+    if (teacherAnalyticsModal) teacherAnalyticsModal.hidden = true;
+}
+
+teacherAnalyticsCloseBtn?.addEventListener("click", closeTeacherAnalytics);
+teacherAnalyticsStudentSearch?.addEventListener("input", renderTeacherAnalyticsStudentPicker);
+
+function selectTeacherAnalyticsMonth(year, month) {
+    const date = new Date(year, month, 1);
+    if (date.getFullYear() < ANALYTICS_MIN_YEAR || date.getFullYear() > ANALYTICS_MAX_YEAR) return;
+    selectedAnalyticsYear = date.getFullYear();
+    selectedAnalyticsMonth = date.getMonth();
+    selectedAnalyticsDate = toDateKey(date.getTime());
+    renderStudentAnalytics(selectedAnalyticsStudent);
+}
+
+teacherAnalyticsMonth?.addEventListener("change", () => {
+    selectTeacherAnalyticsMonth(selectedAnalyticsYear, Number(teacherAnalyticsMonth.value));
+});
+teacherAnalyticsYear?.addEventListener("change", () => {
+    selectTeacherAnalyticsMonth(Number(teacherAnalyticsYear.value), selectedAnalyticsMonth);
+});
+teacherAnalyticsPreviousMonth?.addEventListener("click", () => {
+    selectTeacherAnalyticsMonth(selectedAnalyticsYear, selectedAnalyticsMonth - 1);
+});
+teacherAnalyticsNextMonth?.addEventListener("click", () => {
+    selectTeacherAnalyticsMonth(selectedAnalyticsYear, selectedAnalyticsMonth + 1);
+});
+
+function openTeacherAnalytics(studentName = null) {
+    if (!teacherAnalyticsModal) {
+        console.error("Learning Analytics dialog is not available.");
+        showNotification("Learning Analytics could not be opened. Please refresh the dashboard.");
+        return;
+    }
+    if (studentName) selectedAnalyticsStudent = studentName;
+    renderTeacherAnalyticsStudentPicker();
+    teacherAnalyticsModal.hidden = false;
+}
+
+function renderTeacherAnalyticsStudentPicker() {
+    if (!teacherAnalyticsStudents) return;
+    teacherAnalyticsStudents.replaceChildren();
+    const students = getStudentRecords().sort((a, b) => a.name.localeCompare(b.name));
+
+    if (!students.some(student => student.name === selectedAnalyticsStudent)) {
+        selectedAnalyticsStudent = students.some(student => student.name === selectedHistoryStudent)
+            ? selectedHistoryStudent
+            : students[0]?.name || null;
+    }
+
+    if (!students.length) {
+        const empty = document.createElement("p");
+        empty.className = "teacher-archive-empty";
+        empty.textContent = "No students";
+        teacherAnalyticsStudents.appendChild(empty);
+        renderStudentAnalytics(null);
+        return;
+    }
+
+    const query = teacherAnalyticsStudentSearch?.value.trim().toLocaleLowerCase() || "";
+    const filteredStudents = students.filter(student => student.name.toLocaleLowerCase().includes(query));
+    if (!filteredStudents.length) {
+        const empty = document.createElement("p");
+        empty.className = "teacher-archive-empty";
+        empty.textContent = "No students found";
+        teacherAnalyticsStudents.appendChild(empty);
+        return;
+    }
+
+    filteredStudents.forEach(student => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "teacher-activity-log-student";
+        button.textContent = student.name;
+        const isSelected = student.name === selectedAnalyticsStudent;
+        button.classList.toggle("is-selected", isSelected);
+        button.setAttribute("aria-pressed", String(isSelected));
+        button.addEventListener("click", () => {
+            selectedAnalyticsStudent = student.name;
+            renderTeacherAnalyticsStudentPicker();
+        });
+        teacherAnalyticsStudents.appendChild(button);
+    });
+
+    renderStudentAnalytics(selectedAnalyticsStudent);
+}
 
 function renderActivityLogStudentPicker() {
     if (!teacherActivityLogStudents) return;
@@ -2064,8 +2178,10 @@ function getStudentQuizHistory(student) {
     return JSON.parse(localStorage.getItem(getQuizHistoryKey(student))) || [];
 }
 
+const MAX_STUDENT_QUIZ_HISTORY = 365;
+
 function saveStudentQuizHistory(student, history) {
-    localStorage.setItem(getQuizHistoryKey(student), JSON.stringify(history.slice(0, 40)));
+    localStorage.setItem(getQuizHistoryKey(student), JSON.stringify(history.slice(0, MAX_STUDENT_QUIZ_HISTORY)));
 }
 
 function appendQuizHistoryEntry(student, entry) {
@@ -2420,121 +2536,170 @@ function renderActivityLog(studentName) {
 }
 
 function renderStudentAnalytics(studentName) {
-    if (!teacherStudentAnalyticsTable) return;
-    const tbody = teacherStudentAnalyticsTable.querySelector("tbody");
-    tbody.innerHTML = "";
+    if (!teacherAnalyticsCalendarDays || !teacherAnalyticsStudentName) return;
+    teacherAnalyticsStudentName.textContent = studentName || "Select a student";
+    teacherAnalyticsCalendarDays.replaceChildren();
+    if (teacherAnalyticsMonth) teacherAnalyticsMonth.value = String(selectedAnalyticsMonth);
+    if (teacherAnalyticsYear) teacherAnalyticsYear.value = String(selectedAnalyticsYear);
+    if (teacherAnalyticsPreviousMonth) {
+        teacherAnalyticsPreviousMonth.disabled = selectedAnalyticsYear === ANALYTICS_MIN_YEAR && selectedAnalyticsMonth === 0;
+    }
+    if (teacherAnalyticsNextMonth) {
+        teacherAnalyticsNextMonth.disabled = selectedAnalyticsYear === ANALYTICS_MAX_YEAR && selectedAnalyticsMonth === 11;
+    }
 
-    if (!studentName) {
-        if (teacherStudentAnalyticsSubtitle) {
-            teacherStudentAnalyticsSubtitle.textContent = "Choose the three-dot button beside a student’s name to see the specific lesson items they viewed and quiz items they missed, grouped by lesson, with score and date/time.";
+    const activityByDate = new Map();
+    const getDay = key => {
+        if (!activityByDate.has(key)) {
+            activityByDate.set(key, { correct: 0, questions: 0, quizzes: [], lessons: [], mistakes: [] });
         }
-        appendAnalyticsEmptyRow(tbody, "Select a student to view learning analytics.");
-        return;
+        return activityByDate.get(key);
+    };
+
+    if (studentName) {
+        getStudentActivityLog(studentName).forEach(entry => {
+            const timestamp = Number(entry?.date);
+            if (!Number.isFinite(timestamp)) return;
+            const day = getDay(toDateKey(timestamp));
+            if (entry.kind === "lesson") day.lessons.push(entry);
+            if (entry.kind === "quiz-mistake") day.mistakes.push(entry);
+        });
+
+        getStudentQuizHistory(studentName).forEach(entry => {
+            const timestamp = Number(entry?.date);
+            const total = Number(entry?.total);
+            if (!Number.isFinite(timestamp) || !Number.isFinite(total) || total <= 0) return;
+            const day = getDay(toDateKey(timestamp));
+            day.correct += Number(entry.score) || 0;
+            day.questions += total;
+            day.quizzes.push(entry);
+        });
     }
 
-    if (teacherStudentAnalyticsSubtitle) {
-        teacherStudentAnalyticsSubtitle.textContent = `Learning activity and quiz difficulties for ${studentName}.`;
+    const firstWeekday = new Date(selectedAnalyticsYear, selectedAnalyticsMonth, 1).getDay();
+    const daysInMonth = new Date(selectedAnalyticsYear, selectedAnalyticsMonth + 1, 0).getDate();
+    for (let blank = 0; blank < firstWeekday; blank += 1) {
+        const spacer = document.createElement("span");
+        spacer.className = "teacher-analytics-calendar-spacer";
+        spacer.setAttribute("aria-hidden", "true");
+        teacherAnalyticsCalendarDays.appendChild(spacer);
     }
 
-    const activityLog = getStudentActivityLog(studentName)
-        .filter(entry => entry && (entry.kind === "lesson" || entry.kind === "quiz-mistake"))
-        .sort((a, b) => Number(a.date) - Number(b.date));
-    const lessonGroups = new Map();
-    const quizMistakeGroups = new Map();
+    const today = new Date();
+    const todayKey = toDateKey(today.getTime());
+    for (let dayNumber = 1; dayNumber <= daysInMonth; dayNumber += 1) {
+        const date = new Date(selectedAnalyticsYear, selectedAnalyticsMonth, dayNumber);
+        const dateKey = toDateKey(date.getTime());
+        const data = activityByDate.get(dateKey);
+        const dayButton = document.createElement("button");
+        dayButton.type = "button";
+        dayButton.className = "teacher-analytics-calendar-day";
+        dayButton.textContent = String(dayNumber);
+        dayButton.setAttribute("aria-pressed", String(dateKey === selectedAnalyticsDate));
+        if (dateKey === selectedAnalyticsDate) dayButton.classList.add("is-selected");
+        if (dateKey === todayKey) dayButton.classList.add("is-today");
 
-    activityLog.forEach(entry => {
-        const category = entry.category || "lesson";
-        if (entry.kind === "lesson") {
-            const group = lessonGroups.get(category) || { category, items: [], date: 0 };
-            if (entry.item && !group.items.includes(entry.item)) group.items.push(entry.item);
-            group.date = Math.max(group.date, Number(entry.date) || 0);
-            lessonGroups.set(category, group);
-            return;
+        if (!data || (!data.questions && !data.lessons.length && !data.mistakes.length)) {
+            dayButton.classList.add("is-no-data");
+            dayButton.title = `${date.toLocaleDateString()}: no learning activity`;
+        } else if (data.questions) {
+            const accuracy = Math.round((data.correct / data.questions) * 100);
+            const level = accuracy < 50 ? "struggling"
+                : accuracy < 70 ? "growing"
+                    : accuracy < 85 ? "progressing"
+                        : accuracy < 100 ? "strong"
+                            : "perfect";
+            dayButton.classList.add(`is-${level}`);
+            if (data.lessons.length) dayButton.classList.add("has-lesson");
+            dayButton.title = `${date.toLocaleDateString()}: ${accuracy}% quiz accuracy`;
+        } else {
+            if (data.lessons.length) dayButton.classList.add("has-lesson");
+            if (data.mistakes.length) dayButton.classList.add("is-struggling");
+            dayButton.title = `${date.toLocaleDateString()}: ${data.mistakes.length ? "quiz mistakes" : "lesson activity"}`;
         }
 
-        const groupKey = entry.attemptId
-            ? `${category}:${entry.attemptId}`
-            : `${category}:legacy`;
-        const group = quizMistakeGroups.get(groupKey) || {
-            category,
-            attemptId: entry.attemptId || "",
-            items: [],
-            date: 0
-        };
-        if (entry.item && !group.items.includes(entry.item)) group.items.push(entry.item);
-        group.date = Math.max(group.date, Number(entry.date) || 0);
-        quizMistakeGroups.set(groupKey, group);
-    });
-
-    const quizHistory = getStudentQuizHistory(studentName);
-    const quizAnalytics = quizHistory
-        .map(entry => {
-            const category = entry.category || "quiz";
-            const groupKey = entry.attemptId
-                ? `${category}:${entry.attemptId}`
-                : "";
-            const mistakes = groupKey
-                ? quizMistakeGroups.get(groupKey)
-                : null;
-            return {
-                kind: "quiz",
-                category,
-                items: mistakes?.items || [],
-                date: Number(entry.date) || 0,
-                score: Number(entry.score) || 0,
-                total: Number(entry.total) || 0,
-                accuracy: Number(entry.accuracy) || 0,
-                level: entry.levelStopped || "unknown"
-            };
-        })
-        .filter(entry => (
-            entry.accuracy < ADAPTIVE_LEARNING_THRESHOLD
-            || entry.items.length > 0
-        ));
-    const analytics = [
-        ...[...lessonGroups.values()].map(group => ({ ...group, kind: "lesson" })),
-        ...quizAnalytics,
-        ...[...quizMistakeGroups.values()]
-            .filter(group => !group.attemptId)
-            .map(group => ({ ...group, kind: "quiz" }))
-    ].sort((a, b) => Number(b.date) - Number(a.date));
-    if (!analytics.length) {
-        appendAnalyticsEmptyRow(tbody, `No lesson or quiz difficulties are recorded yet for ${studentName}.`);
-        return;
+        dayButton.addEventListener("click", () => {
+            selectedAnalyticsDate = dateKey;
+            renderStudentAnalytics(selectedAnalyticsStudent);
+        });
+        teacherAnalyticsCalendarDays.appendChild(dayButton);
     }
 
-    analytics.forEach(entry => {
-        const isQuizActivity = entry.kind === "quiz";
-        const row = document.createElement("tr");
-        row.className = isQuizActivity ? "student-analytics-row--quiz" : "student-analytics-row--lesson";
-
-        const weaknessCell = document.createElement("td");
-        const categoryName = getLessonDisplayName(entry.category || "lesson");
-        const itemNames = entry.items
-            .map(item => entry.category === "colors" && item.toLowerCase() === "pink"
-                ? "Color pink"
-                : item);
-        const itemList = itemNames.length ? itemNames.join(", ") : "Items not recorded";
-        const quizScore = isQuizActivity
-            ? ` Scored ${entry.score}/${entry.total} (${entry.accuracy}%) at ${entry.level} level.`
-            : "";
-        weaknessCell.appendChild(document.createTextNode(` ${categoryName} - ${itemList}${quizScore}`));
-
-        const dateCell = document.createElement("td");
-        dateCell.textContent = formatQuizHistoryDate(entry.date);
-        row.append(weaknessCell, dateCell);
-        tbody.appendChild(row);
-    });
+    if (teacherAnalyticsSelectedDate) {
+        const selectedDate = new Date(`${selectedAnalyticsDate}T00:00:00`);
+        teacherAnalyticsSelectedDate.textContent = selectedDate.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "long",
+            day: "numeric"
+        });
+    }
+    renderTeacherAnalyticsDateDetails(studentName, activityByDate.get(selectedAnalyticsDate));
 }
 
-function appendAnalyticsEmptyRow(tbody, message) {
-    const row = document.createElement("tr");
-    row.className = "quiz-history-empty";
-    const cell = document.createElement("td");
-    cell.colSpan = 2;
-    cell.textContent = message;
-    row.appendChild(cell);
-    tbody.appendChild(row);
+function renderTeacherAnalyticsDateDetails(studentName, dayData) {
+    if (!teacherAnalyticsDateDetails) return;
+    teacherAnalyticsDateDetails.replaceChildren();
+    if (!studentName || !dayData) {
+        const empty = document.createElement("p");
+        empty.className = "teacher-analytics-empty";
+        empty.textContent = studentName ? "No learning activity" : "Select a student";
+        teacherAnalyticsDateDetails.appendChild(empty);
+        return;
+    }
+
+    const lessonGroups = new Map();
+    dayData.lessons.forEach(entry => {
+        const category = entry.category || "lesson";
+        const items = lessonGroups.get(category) || new Set();
+        if (entry.item) items.add(entry.item);
+        lessonGroups.set(category, items);
+    });
+    lessonGroups.forEach((items, category) => {
+        const row = document.createElement("p");
+        const itemList = [...items].join(", ");
+        row.textContent = `Lesson · ${getLessonDisplayName(category)}${itemList ? ` · ${itemList}` : ""}`;
+        teacherAnalyticsDateDetails.appendChild(row);
+    });
+
+    const usedMistakes = new Set();
+    dayData.quizzes.forEach(entry => {
+        const category = entry.category || "quiz";
+        const mistakes = dayData.mistakes.filter(mistake => {
+            if (entry.attemptId) return mistake.attemptId === entry.attemptId;
+            return !mistake.attemptId
+                && !usedMistakes.has(mistake)
+                && (mistake.category || "quiz") === category;
+        });
+        mistakes.forEach(mistake => usedMistakes.add(mistake));
+        const missedItems = [...new Set(mistakes.map(mistake => mistake.item).filter(Boolean))];
+        const row = document.createElement("p");
+        row.textContent = `Quiz · ${getLessonDisplayName(category)} · ${Number(entry.score) || 0}/${Number(entry.total) || 0}`
+            + (missedItems.length ? ` · Missed: ${missedItems.join(", ")}` : "");
+        teacherAnalyticsDateDetails.appendChild(row);
+    });
+
+    const unmatchedMistakes = dayData.mistakes.filter(mistake => !usedMistakes.has(mistake));
+    if (unmatchedMistakes.length) {
+        const groupedMistakes = new Map();
+        unmatchedMistakes.forEach(mistake => {
+            const category = mistake.category || "quiz";
+            const items = groupedMistakes.get(category) || new Set();
+            if (mistake.item) items.add(mistake.item);
+            groupedMistakes.set(category, items);
+        });
+        groupedMistakes.forEach((items, category) => {
+            const row = document.createElement("p");
+            row.textContent = `Quiz · ${getLessonDisplayName(category)} · Missed: ${[...items].join(", ")}`;
+            teacherAnalyticsDateDetails.appendChild(row);
+        });
+    }
+
+    if (!teacherAnalyticsDateDetails.childElementCount) {
+        const empty = document.createElement("p");
+        empty.className = "teacher-analytics-empty";
+        empty.textContent = "No learning activity";
+        teacherAnalyticsDateDetails.appendChild(empty);
+    }
 }
 
 function renderTeacherStudentProgress() {
@@ -2585,17 +2750,6 @@ function renderTeacherStudentProgress() {
 
         const nameTd = document.createElement("td");
         nameTd.textContent = record.name;
-        const analyticsBtn = document.createElement("button");
-        analyticsBtn.type = "button";
-        analyticsBtn.className = "student-analytics-trigger";
-        analyticsBtn.textContent = "⋮";
-        analyticsBtn.setAttribute("aria-label", `View learning analytics for ${record.name}`);
-        analyticsBtn.title = `View learning analytics for ${record.name}`;
-        analyticsBtn.addEventListener("click", () => {
-            selectedAnalyticsStudent = record.name;
-            renderStudentAnalytics(record.name);
-            document.getElementById("teacherStudentAnalyticsPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
 
         const avatarTd = document.createElement("td");
         const img = document.createElement("img");
@@ -2684,7 +2838,6 @@ function renderTeacherStudentProgress() {
             showNotification(`${record.name} was signed out. They can log in again from the student profile.`);
         });
 
-        actionsWrap.appendChild(analyticsBtn);
         actionsWrap.appendChild(historyBtn);
         actionsWrap.appendChild(signOutBtn);
         actionsWrap.appendChild(removeBtn);
@@ -6761,6 +6914,6 @@ window.addEventListener("load",()=>{
 });
 
 
-// 5850
-// 6429
+
 // 6766 defense full force
+// 6919 anaytics
