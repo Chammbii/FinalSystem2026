@@ -283,6 +283,7 @@
                     <button id="teacherCustomizeBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">＋</span><span class="teacher-sidebar-label">Add Quiz</span></button>
                     <button id="teacherAddLessonBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">＋</span><span class="teacher-sidebar-label">Add Lesson</span></button>
                     <button id="teacherActivityLogBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">◷</span><span class="teacher-sidebar-label">Activity Log</span></button>
+                    <button id="teacherAnalyticsBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">▥</span><span class="teacher-sidebar-label">Analytics</span></button>
                     <button id="teacherArchiveBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">▤</span><span class="teacher-sidebar-label">Archive</span></button>
                     <button id="teacherDashboardPrintBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">▣</span><span class="teacher-sidebar-label">Print</span></button>
                     <button id="teacherDashboardSettingsBtn" class="teacher-sidebar-btn" type="button"><span class="teacher-sidebar-icon">⚙</span><span class="teacher-sidebar-label">Settings</span></button>
@@ -373,28 +374,6 @@
                             </tr>
                         </thead>
                         <tbody></tbody>
-                    </table>
-                </div>
-            </section>
-
-            <section class="tdash-panel tdash-panel--wide" id="teacherStudentAnalyticsPanel">
-                <div class="tdash-panel-head">
-                    <h3>Student Learning Analytics</h3>
-                    <p id="teacherStudentAnalyticsSubtitle">Choose the three-dot button beside a student’s name to see the specific lesson items they viewed and quiz items they missed, grouped by lesson, with score and date/time.</p>
-                </div>
-                <div class="quiz-history-table-wrap">
-                    <table id="teacherStudentAnalyticsTable">
-                        <thead>
-                            <tr>
-                                <th>Student weakness</th>
-                                <th>Date &amp; time</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="quiz-history-empty">
-                                <td colspan="2">Select a student to view learning analytics.</td>
-                            </tr>
-                        </tbody>
                     </table>
                 </div>
             </section>
@@ -513,6 +492,67 @@
                 <div class="teacher-archive-actions">
                     <button id="teacherActivityLogDoneBtn" class="tdash-btn tdash-btn--ghost" type="button">Done</button>
                 </div>
+            </div>
+        </div>
+
+        <div id="teacherAnalyticsModal" class="teacher-archive-modal" hidden>
+            <div class="teacher-archive-card teacher-analytics-card" role="dialog" aria-modal="true" aria-labelledby="teacherAnalyticsTitle">
+                <div class="teacher-archive-header">
+                    <div>
+                        <h3 id="teacherAnalyticsTitle">Analytics</h3>
+                    </div>
+                    <button id="teacherAnalyticsCloseBtn" class="teacher-archive-close" type="button" aria-label="Close analytics">×</button>
+                </div>
+                <div class="teacher-activity-log-student-picker">
+                    <label class="teacher-analytics-visually-hidden" for="teacherAnalyticsStudentSearch">Search students</label>
+                    <input id="teacherAnalyticsStudentSearch" class="teacher-analytics-search" type="search" placeholder="Search students..." autocomplete="off">
+                    <div id="teacherAnalyticsStudents" class="teacher-activity-log-students" role="group" aria-label="Choose a student for learning analytics"></div>
+                </div>
+                <section class="teacher-analytics-calendar" aria-live="polite">
+                    <h4 id="teacherAnalyticsStudentName">Select a student</h4>
+                    <div class="teacher-analytics-calendar-controls">
+                        <button id="teacherAnalyticsPreviousMonth" class="teacher-analytics-month-button" type="button" aria-label="Previous month">‹</button>
+                        <label class="teacher-analytics-visually-hidden" for="teacherAnalyticsMonth">Month</label>
+                        <select id="teacherAnalyticsMonth" aria-label="Calendar month">
+                            <option value="0">January</option>
+                            <option value="1">February</option>
+                            <option value="2">March</option>
+                            <option value="3">April</option>
+                            <option value="4">May</option>
+                            <option value="5">June</option>
+                            <option value="6">July</option>
+                            <option value="7">August</option>
+                            <option value="8">September</option>
+                            <option value="9">October</option>
+                            <option value="10">November</option>
+                            <option value="11">December</option>
+                        </select>
+                        <label class="teacher-analytics-visually-hidden" for="teacherAnalyticsYear">Year</label>
+                        <select id="teacherAnalyticsYear" aria-label="Calendar year">
+                            <option value="2026">2026</option>
+                            <option value="2027">2027</option>
+                            <option value="2028">2028</option>
+                            <option value="2029">2029</option>
+                            <option value="2030">2030</option>
+                        </select>
+                        <button id="teacherAnalyticsNextMonth" class="teacher-analytics-month-button" type="button" aria-label="Next month">›</button>
+                    </div>
+                    <div class="teacher-analytics-weekdays" aria-hidden="true">
+                        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                    </div>
+                    <div id="teacherAnalyticsCalendarDays" class="teacher-analytics-calendar-days" role="group" aria-label="Choose a date"></div>
+                    <div class="teacher-analytics-legend" aria-label="Quiz accuracy legend">
+                        <span><i class="is-no-data"></i>No activity</span>
+                        <span><i class="has-lesson"></i>Lesson</span>
+                        <span><i class="is-struggling"></i>0–49%</span>
+                        <span><i class="is-growing"></i>50–69%</span>
+                        <span><i class="is-progressing"></i>70–84%</span>
+                        <span><i class="is-strong"></i>85–99%</span>
+                        <span><i class="is-perfect"></i>100%</span>
+                    </div>
+                    <h4 id="teacherAnalyticsSelectedDate" class="teacher-analytics-selected-date"></h4>
+                    <div id="teacherAnalyticsDateDetails" class="teacher-analytics-date-details" aria-live="polite"></div>
+                </section>
             </div>
         </div>
 
@@ -1172,6 +1212,6 @@
 </html>
 
 
-    <!-- 1101 -->
-     <!-- 1138 -->
+  
       <!-- 1177 defense full force -->
+       <!-- 1217  analytics-->
