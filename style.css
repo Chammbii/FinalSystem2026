@@ -4773,6 +4773,10 @@ footer{
     box-shadow:0 10px 24px rgba(29,53,87,.08);
 }
 
+.quiz-unlock-box[hidden]{
+    display:none;
+}
+
 .quiz-unlock-title{
     font-size:18px;
     font-weight:800;
@@ -6055,4 +6059,4 @@ footer{
 /* 5323 */
 /* 5451 */
 /* 5777 defense full force */
-/* 6058 analytics */
+/* 6062 analytics */
