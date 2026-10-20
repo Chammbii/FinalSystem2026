@@ -4755,16 +4755,6 @@ footer{
     justify-items:center;
 }
 
-/* Every quiz difficulty uses three answer choices. */
-#quizAnswerGrid[data-quiz-choice-layout="easy"]{
-    grid-template-columns:repeat(3,minmax(0,1fr));
-}
-
-#quizAnswerGrid[data-quiz-choice-layout="medium"],
-#quizAnswerGrid[data-quiz-choice-layout="hard"]{
-    grid-template-columns:repeat(3,minmax(0,1fr));
-}
-
 /* Hide unused choice slots so only the active count shows */
 .answer-card.unused,
 .answer-card[hidden]{
@@ -5057,9 +5047,7 @@ footer{
         font-size:20px;
     }
 
-    #quizAnswerGrid[data-quiz-choice-layout="easy"],
-    #quizAnswerGrid[data-quiz-choice-layout="medium"],
-    #quizAnswerGrid[data-quiz-choice-layout="hard"]{
+    .answer-grid{
         grid-template-columns:repeat(3,minmax(0,1fr));
         gap:10px;
     }
@@ -5283,9 +5271,7 @@ footer{
         font-size:40px;
     }
 
-    #quizAnswerGrid[data-quiz-choice-layout="easy"],
-    #quizAnswerGrid[data-quiz-choice-layout="medium"],
-    #quizAnswerGrid[data-quiz-choice-layout="hard"]{
+    .answer-grid{
         grid-template-columns:repeat(2,minmax(0,1fr));
         gap:14px;
     }
