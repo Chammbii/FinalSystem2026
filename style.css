@@ -4699,6 +4699,22 @@ footer{
     margin-bottom:15px;
 }
 
+.quiz-recent-score{
+    display:inline-block;
+    margin-left:14px;
+    padding:6px 12px;
+    border-radius:16px;
+    background:#fff3d6;
+    color:#9a6200;
+    font-size:18px;
+    font-weight:700;
+    vertical-align:middle;
+}
+
+.quiz-recent-score[hidden]{
+    display:none;
+}
+
 /* =====================================================
    QUESTION NUMBER
 ===================================================== */
