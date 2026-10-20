@@ -3871,11 +3871,7 @@ function getSpeechRecognitionErrorMessage(errorCode) {
 
 function speakQuizQuestion() {
     if (!quizQuestions.length) return;
-    const prefix = selectedLanguage === 'tl'
-        ? `Tanong ${currentQuizIndex + 1}. `
-        : `Question ${currentQuizIndex + 1}. `;
-    const text = prefix + quizQuestions[currentQuizIndex].prompt;
-    return speakText(text);
+    return speakText(quizQuestions[currentQuizIndex].prompt);
 }
 
 function speakQuizFeedback(isCorrect, correctAnswer) {
@@ -5449,8 +5445,6 @@ const quizProgressFillEl = document.getElementById("quizProgressFill");
 const quizVoiceBtn = document.getElementById("quizVoiceBtn");
 const quizVoiceInteractionBtn = document.getElementById("quizVoiceInteractionBtn");
 const quizVoiceStatusEl = document.getElementById("quizVoiceStatus");
-const quizUnlockRuleEl = document.getElementById("quizUnlockRule");
-const quizUnlockProgressEl = document.getElementById("quizUnlockProgress");
 const answerButtons = document.querySelectorAll(".answer-card");
 
 const STAR_REWARDS = {
@@ -5459,8 +5453,6 @@ const STAR_REWARDS = {
     hard: 5
 };
 
-// Difficulty UI
-const difficultyButtons = document.querySelectorAll(".difficulty-btn");
 const QUIZ_DIFFICULTY = {
     easy: { questionCount: 5 },
     medium: { questionCount: 10 },
@@ -5468,58 +5460,6 @@ const QUIZ_DIFFICULTY = {
 };
 
 let quizDifficulty = localStorage.getItem("quizDifficulty") || "easy";
-
-function applyQuizDifficultyUI() {
-    difficultyButtons.forEach(btn => {
-        const isActive = btn.dataset.difficulty === quizDifficulty;
-        btn.classList.toggle("active", isActive);
-        btn.setAttribute("aria-pressed", isActive ? "true" : "false");
-    });
-}
-
-function updateQuizUnlockBox() {
-    if (!quizUnlockRuleEl || !quizUnlockProgressEl) return;
-
-    const total = quizQuestions.length || getExpectedQuestionCountForDifficulty(quizDifficulty);
-    const correct = quizStageState ? (quizStageState.stageScore || 0) : 0;
-    const levelName = quizDifficulty.charAt(0).toUpperCase() + quizDifficulty.slice(1);
-    const titleEl = document.querySelector(".quiz-unlock-title");
-
-    let ruleText;
-    if (selectedLanguage === "tl") {
-        if (titleEl) titleEl.textContent = "Paano Ma-unlock ang Susunod na Level";
-        if (quizDifficulty === "easy") {
-            ruleText = `Kailangan mong makuha ang lahat ng ${total} Easy na tanong nang tama para ma-unlock ang Normal.`;
-        } else if (quizDifficulty === "medium") {
-            ruleText = `Kailangan mong makuha ang lahat ng ${total} Normal na tanong nang tama para ma-unlock ang Hard.`;
-        } else {
-            ruleText = `Huling level: sagutin nang tama ang lahat ng ${total} Hard na tanong.`;
-        }
-        quizUnlockProgressEl.textContent = `Progreso: ${correct} / ${total} tama (${levelName})`;
-    } else {
-        if (titleEl) {
-            titleEl.textContent = quizDifficulty === "hard"
-                ? "Final Level Goal"
-                : "Unlock Next Level";
-        }
-        if (quizDifficulty === "easy") {
-            ruleText = `Get all ${total} Easy answers correct to unlock Normal.`;
-        } else if (quizDifficulty === "medium") {
-            ruleText = `Get all ${total} Normal answers correct to unlock Hard.`;
-        } else {
-            ruleText = `Final level: answer all ${total} Hard questions correctly.`;
-        }
-        quizUnlockProgressEl.textContent = `Progress: ${correct} / ${total} correct (${levelName})`;
-    }
-
-    quizUnlockRuleEl.textContent = ruleText;
-}
-
-difficultyButtons.forEach(btn => {
-    btn.addEventListener("click", () => {
-        // Difficulty buttons are display-only; quiz difficulty is automatic.
-    });
-});
 
 
 // Current category for quiz
@@ -5609,15 +5549,15 @@ function classifyQuizVoiceResponse(transcripts) {
 function getQuizVoiceCandidatePrompt(choice) {
     const word = selectedLanguage === "tl" ? translateWord(choice) : choice;
     if (selectedLanguage === "tl") {
-        if (quizCategory === "colors") return `Ito ba ang kulay na ${word}?`;
-        if (quizCategory === "shapes") return `Ito ba ang hugis na ${word}?`;
-        if (quizCategory === "numbers") return `Ito ba ang numerong ${word}?`;
-        return `Ito ba ang sagot na ${word}?`;
+        if (quizCategory === "colors") return `Ito ba ang ${word}? Sabihin ang oo o hindi.`;
+        if (quizCategory === "shapes") return `Ito ba ay ${word}? Sabihin ang oo o hindi.`;
+        if (quizCategory === "numbers") return `Ito ba ang ${word}? Sabihin ang oo o hindi.`;
+        return `Ito ba ang sagot na ${word}? Sabihin ang oo o hindi.`;
     }
-    if (quizCategory === "colors") return `Is this color ${word}?`;
-    if (quizCategory === "shapes") return `Is this shape ${word}?`;
-    if (quizCategory === "numbers") return `Is this number ${word}?`;
-    return `Is ${word} the answer?`;
+    if (quizCategory === "colors") return `Is this ${word}? Say yes or no.`;
+    if (quizCategory === "shapes") return `Is this a ${word}? Say yes or no.`;
+    if (quizCategory === "numbers") return `Is this ${word}? Say yes or no.`;
+    return `Is ${word} the answer? Say yes or no.`;
 }
 
 function isQuizAnswerCorrect(selected, correct) {
@@ -5987,8 +5927,6 @@ function initializeQuiz(){
     // Always start at Easy for a new quiz session
     quizDifficulty = 'easy';
     currentQuizAttemptId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-    applyQuizDifficultyUI();
 
     quizCategory = currentCategory;
     quizLessonIndex = currentLesson; // Track lesson for adaptive learning
@@ -6368,13 +6306,6 @@ function loadQuizQuestion(){
     quizProgressFillEl.style.width =
         `${Math.round((currentQuizIndex / quizQuestions.length) * 100)}%`;
 
-    updateQuizUnlockBox();
-
-    const quizAnswerGrid = document.getElementById("quizAnswerGrid");
-    if (quizAnswerGrid) {
-        quizAnswerGrid.dataset.quizChoiceLayout = quizDifficulty;
-    }
-
     // Enable only the required number of choice buttons per difficulty
     const requiredChoiceCount = Math.min(3, question.choices.length);
 
@@ -6479,8 +6410,6 @@ function confirmQuizAnswer(){
         quizScore++;
         if (quizStageState) quizStageState.stageScore = (quizStageState.stageScore || 0) + 1;
         awardQuizStars();
-        updateQuizUnlockBox();
-
         quizCorrectFeedbackToggle = (quizCorrectFeedbackToggle + 1) % 2;
         const isEven = quizCorrectFeedbackToggle === 0;
 
@@ -6641,8 +6570,6 @@ function finishQuiz(){
         quizStageState.stageScore = 0;
 
         quizDifficulty = quizStageState.stageConfig[quizStageState.stageIndex].difficulty;
-
-        applyQuizDifficultyUI();
 
         quizAnswered = false;
         quizComplete = false;
