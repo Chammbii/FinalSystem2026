@@ -67,6 +67,7 @@ const teacherCustomizeCloseBtn = document.getElementById("teacherCustomizeCloseB
 const customQuestionCategory = document.getElementById("customQuestionCategory");
 const customQuestionDifficulty = document.getElementById("customQuestionDifficulty");
 const customQuestionPrompt = document.getElementById("customQuestionPrompt");
+const customQuestionImage = document.getElementById("customQuestionImage");
 const customQuestionAudio = document.getElementById("customQuestionAudio");
 const customQuestionCorrect = document.getElementById("customQuestionCorrect");
 const customQuestionList = document.getElementById("customQuestionList");
@@ -1239,7 +1240,7 @@ function renderCustomQuestionList() {
     customQuestionList.innerHTML = questions.length
         ? questions.map(question => `
             <div class="custom-question-item">
-                <div><strong>${escapePrintText(question.promptEN)}</strong><span>${escapePrintText(getLessonDisplayName(question.category))} · ${escapePrintText(question.difficulty)}${question.audio ? " · Audio attached" : ""}</span></div>
+                <div><strong>${escapePrintText(question.promptEN)}</strong><span>${escapePrintText(getLessonDisplayName(question.category))} · ${escapePrintText(question.difficulty)}${question.image ? " · Picture attached" : ""}${question.audio ? " · Audio attached" : ""}</span></div>
                 <button class="tdash-btn tdash-btn--danger" type="button" data-custom-question-id="${escapePrintText(question.id)}">Remove</button>
             </div>`).join("")
         : `<p class="custom-question-empty">No ${selectedCustomQuestionLevel === "medium" ? "normal" : selectedCustomQuestionLevel} questions added yet.</p>`;
@@ -1302,6 +1303,7 @@ if (teacherCustomizeForm) {
         const choiceInputs = [...teacherCustomizeForm.querySelectorAll(".custom-choice")];
         const imageInputs = [...teacherCustomizeForm.querySelectorAll(".custom-choice-image")];
         const choices = choiceInputs.map(input => input.value.trim()).filter(Boolean);
+        const questionImageFile = customQuestionImage?.files[0];
         const audioFile = customQuestionAudio?.files[0];
         const correct = customQuestionCorrect.value.trim();
         const uniqueChoices = [...new Set(choices)];
@@ -1319,6 +1321,7 @@ if (teacherCustomizeForm) {
                     choiceImages[choice] = await readImageAsDataUrl(file);
                 }
             }
+            const image = questionImageFile ? await readImageAsDataUrl(questionImageFile) : "";
             const audio = audioFile ? await readAudioAsDataUrl(audioFile) : "";
 
             const questions = getCustomQuizQuestions();
@@ -1328,6 +1331,7 @@ if (teacherCustomizeForm) {
                 difficulty: customQuestionDifficulty.value,
                 promptEN: customQuestionPrompt.value.trim(),
                 promptTL: customQuestionPrompt.value.trim(),
+                image,
                 word: correct,
                 choices: uniqueChoices,
                 choiceImages,
@@ -3871,7 +3875,11 @@ function getSpeechRecognitionErrorMessage(errorCode) {
 
 function speakQuizQuestion() {
     if (!quizQuestions.length) return;
-    return speakText(quizQuestions[currentQuizIndex].prompt);
+    const prefix = selectedLanguage === 'tl'
+        ? `Tanong ${currentQuizIndex + 1}. `
+        : `Question ${currentQuizIndex + 1}. `;
+    const text = prefix + quizQuestions[currentQuizIndex].prompt;
+    return speakText(text);
 }
 
 function speakQuizFeedback(isCorrect, correctAnswer) {
@@ -5441,10 +5449,24 @@ const quizTitle = document.getElementById("quizTitle");
 const currentScoreEl = document.getElementById("currentScore");
 const questionNumberEl = document.getElementById("questionNumber");
 const quizQuestionEl = document.getElementById("quizQuestion");
+const quizQuestionImageEl = document.getElementById("quizQuestionImage");
 const quizProgressFillEl = document.getElementById("quizProgressFill");
 const quizVoiceBtn = document.getElementById("quizVoiceBtn");
 const quizVoiceInteractionBtn = document.getElementById("quizVoiceInteractionBtn");
+const quizCompletionPanel = document.getElementById("quizCompletionPanel");
+const quizCompletionHeading = document.getElementById("quizCompletionHeading");
+const quizCompletionFeedback = document.getElementById("quizCompletionFeedback");
+const quizCompletionScore = document.getElementById("quizCompletionScore");
+const quizCompletionStageScores = document.getElementById("quizCompletionStageScores");
+const quizCompletionMenuBtn = document.getElementById("quizCompletionMenuBtn");
+const quizCompletionNextBtn = document.getElementById("quizCompletionNextBtn");
+const quizConfettiCanvas = document.getElementById("quizConfettiCanvas");
+const quizScoreContainer = document.querySelector(".quiz-score");
+const quizProgressContainer = document.querySelector(".quiz-progress");
+const quizVoiceControls = document.querySelector(".quiz-voice-controls");
 const quizVoiceStatusEl = document.getElementById("quizVoiceStatus");
+const quizUnlockRuleEl = document.getElementById("quizUnlockRule");
+const quizUnlockProgressEl = document.getElementById("quizUnlockProgress");
 const answerButtons = document.querySelectorAll(".answer-card");
 
 const STAR_REWARDS = {
@@ -5453,13 +5475,67 @@ const STAR_REWARDS = {
     hard: 5
 };
 
+// Difficulty UI
+const difficultyButtons = document.querySelectorAll(".difficulty-btn");
 const QUIZ_DIFFICULTY = {
     easy: { questionCount: 5 },
-    medium: { questionCount: 10 },
-    hard: { questionCount: 15 }
+    medium: { questionCount: 5 },
+    hard: { questionCount: 5 }
 };
 
 let quizDifficulty = localStorage.getItem("quizDifficulty") || "easy";
+
+function applyQuizDifficultyUI() {
+    difficultyButtons.forEach(btn => {
+        const isActive = btn.dataset.difficulty === quizDifficulty;
+        btn.classList.toggle("active", isActive);
+        btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+}
+
+function updateQuizUnlockBox() {
+    if (!quizUnlockRuleEl || !quizUnlockProgressEl) return;
+
+    const total = quizQuestions.length || getExpectedQuestionCountForDifficulty(quizDifficulty);
+    const correct = quizStageState ? (quizStageState.stageScore || 0) : 0;
+    const levelName = quizDifficulty.charAt(0).toUpperCase() + quizDifficulty.slice(1);
+    const titleEl = document.querySelector(".quiz-unlock-title");
+
+    let ruleText;
+    if (selectedLanguage === "tl") {
+        if (titleEl) titleEl.textContent = "Paano Ma-unlock ang Susunod na Level";
+        if (quizDifficulty === "easy") {
+            ruleText = `Kailangan mong makuha ang lahat ng ${total} Easy na tanong nang tama para ma-unlock ang Normal.`;
+        } else if (quizDifficulty === "medium") {
+            ruleText = `Kailangan mong makuha ang lahat ng ${total} Normal na tanong nang tama para ma-unlock ang Hard.`;
+        } else {
+            ruleText = `Huling level: sagutin nang tama ang lahat ng ${total} Hard na tanong.`;
+        }
+        quizUnlockProgressEl.textContent = `Progreso: ${correct} / ${total} tama (${levelName})`;
+    } else {
+        if (titleEl) {
+            titleEl.textContent = quizDifficulty === "hard"
+                ? "Final Level Goal"
+                : "Unlock Next Level";
+        }
+        if (quizDifficulty === "easy") {
+            ruleText = `Get all ${total} Easy answers correct to unlock Normal.`;
+        } else if (quizDifficulty === "medium") {
+            ruleText = `Get all ${total} Normal answers correct to unlock Hard.`;
+        } else {
+            ruleText = `Final level: answer all ${total} Hard questions correctly.`;
+        }
+        quizUnlockProgressEl.textContent = `Progress: ${correct} / ${total} correct (${levelName})`;
+    }
+
+    quizUnlockRuleEl.textContent = ruleText;
+}
+
+difficultyButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+        // Difficulty buttons are display-only; quiz difficulty is automatic.
+    });
+});
 
 
 // Current category for quiz
@@ -5549,15 +5625,15 @@ function classifyQuizVoiceResponse(transcripts) {
 function getQuizVoiceCandidatePrompt(choice) {
     const word = selectedLanguage === "tl" ? translateWord(choice) : choice;
     if (selectedLanguage === "tl") {
-        if (quizCategory === "colors") return `Ito ba ang ${word}? Sabihin ang oo o hindi.`;
-        if (quizCategory === "shapes") return `Ito ba ay ${word}? Sabihin ang oo o hindi.`;
-        if (quizCategory === "numbers") return `Ito ba ang ${word}? Sabihin ang oo o hindi.`;
-        return `Ito ba ang sagot na ${word}? Sabihin ang oo o hindi.`;
+        if (quizCategory === "colors") return `Ito ba ang kulay na ${word}?`;
+        if (quizCategory === "shapes") return `Ito ba ang hugis na ${word}?`;
+        if (quizCategory === "numbers") return `Ito ba ang numerong ${word}?`;
+        return `Ito ba ang sagot na ${word}?`;
     }
-    if (quizCategory === "colors") return `Is this ${word}? Say yes or no.`;
-    if (quizCategory === "shapes") return `Is this a ${word}? Say yes or no.`;
-    if (quizCategory === "numbers") return `Is this ${word}? Say yes or no.`;
-    return `Is ${word} the answer? Say yes or no.`;
+    if (quizCategory === "colors") return `Is this color ${word}?`;
+    if (quizCategory === "shapes") return `Is this shape ${word}?`;
+    if (quizCategory === "numbers") return `Is this number ${word}?`;
+    return `Is ${word} the answer?`;
 }
 
 function isQuizAnswerCorrect(selected, correct) {
@@ -5925,8 +6001,12 @@ nextLesson.onclick = () => {
 function initializeQuiz(){
 
     // Always start at Easy for a new quiz session
+    setQuizCompletionView(false);
+    stopQuizConfetti();
     quizDifficulty = 'easy';
     currentQuizAttemptId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    applyQuizDifficultyUI();
 
     quizCategory = currentCategory;
     quizLessonIndex = currentLesson; // Track lesson for adaptive learning
@@ -5946,17 +6026,19 @@ function initializeQuiz(){
             ? (quizTitleTranslations[quizCategory] || `${translateLessonTitle(quizCategory)} Quiz`)
             : `${translateLessonTitle(quizCategory)} Quiz`;
 
-    // Sequential stage progression: Easy (5) -> Normal (10) -> Hard (15)
+    // Each difficulty has five questions by default. Teacher-added questions
+    // expand only the matching category and difficulty stage.
     // Must get every answer correct in a stage to unlock the next.
     const stageConfig = [
-        { difficulty: 'easy', questionCount: QUIZ_DIFFICULTY.easy.questionCount },
-        { difficulty: 'medium', questionCount: QUIZ_DIFFICULTY.medium.questionCount },
-        { difficulty: 'hard', questionCount: QUIZ_DIFFICULTY.hard.questionCount }
+        { difficulty: 'easy', questionCount: getQuizQuestionCount(quizCategory, 'easy') },
+        { difficulty: 'medium', questionCount: getQuizQuestionCount(quizCategory, 'medium') },
+        { difficulty: 'hard', questionCount: getQuizQuestionCount(quizCategory, 'hard') }
     ];
 
     quizStageState = {
         stageIndex: 0,
         stageConfig,
+        stageResults: [],
         stageScore: 0,
         quizDifficulty: quizDifficulty
     };
@@ -6144,6 +6226,7 @@ function generateQuizQuestions(category, difficulty, overrideCount){
         if (item.custom) {
             return {
                 prompt: selectedLanguage === "tl" ? item.promptTL : item.promptEN,
+                image: item.image || "",
                 correct: item.word,
                 choices: buildCustomQuizChoices(item, category, difficulty),
                 choiceImages: item.choiceImages || {},
@@ -6213,6 +6296,15 @@ function generateQuizQuestions(category, difficulty, overrideCount){
             choices: buildQuizChoices(item.word, items, difficulty)
         };
     });
+}
+
+function getQuizQuestionCount(category, difficulty) {
+    const cfg = QUIZ_DIFFICULTY[difficulty] || QUIZ_DIFFICULTY.easy;
+    const teacherQuestionCount = getCustomQuizQuestions().filter(question =>
+        question.category === category && question.difficulty === difficulty
+    ).length;
+
+    return Math.max(cfg.questionCount, teacherQuestionCount);
 }
 
 function buildCustomQuizChoices(item, category, difficulty) {
@@ -6293,6 +6385,15 @@ function loadQuizQuestion(){
     const question = quizQuestions[currentQuizIndex];
 
     quizQuestionEl.textContent = question.prompt;
+    if (quizQuestionImageEl) {
+        if (question.image) {
+            quizQuestionImageEl.src = question.image;
+            quizQuestionImageEl.hidden = false;
+        } else {
+            quizQuestionImageEl.removeAttribute("src");
+            quizQuestionImageEl.hidden = true;
+        }
+    }
     quizVoiceBtn.textContent = question.audio ? "🔊 Play Audio" : "🔊 Read Question";
     quizVoiceBtn.title = question.audio ? "Play the teacher's recorded audio" : "Read the question aloud";
 
@@ -6305,6 +6406,13 @@ function loadQuizQuestion(){
     currentScoreEl.textContent = String(quizScore);
     quizProgressFillEl.style.width =
         `${Math.round((currentQuizIndex / quizQuestions.length) * 100)}%`;
+
+    updateQuizUnlockBox();
+
+    const quizAnswerGrid = document.getElementById("quizAnswerGrid");
+    if (quizAnswerGrid) {
+        quizAnswerGrid.dataset.quizChoiceLayout = quizDifficulty;
+    }
 
     // Enable only the required number of choice buttons per difficulty
     const requiredChoiceCount = Math.min(3, question.choices.length);
@@ -6327,7 +6435,11 @@ function loadQuizQuestion(){
         const answerLabel = button.querySelector(".answer-label");
         const customImage = question.choiceImages?.[answerWord];
 
-        if (answerLabel) answerLabel.textContent = answerWord;
+        if (answerLabel) {
+            answerLabel.textContent = answerWord;
+            answerLabel.hidden = Boolean(isUsed && (customImage || answerItem?.image));
+        }
+        button.setAttribute("aria-label", answerWord);
 
         if (imageDiv) {
             if (isUsed && (customImage || answerItem?.image)) {
@@ -6410,6 +6522,8 @@ function confirmQuizAnswer(){
         quizScore++;
         if (quizStageState) quizStageState.stageScore = (quizStageState.stageScore || 0) + 1;
         awardQuizStars();
+        updateQuizUnlockBox();
+
         quizCorrectFeedbackToggle = (quizCorrectFeedbackToggle + 1) % 2;
         const isEven = quizCorrectFeedbackToggle === 0;
 
@@ -6455,14 +6569,12 @@ function confirmQuizAnswer(){
 }
 
 function getExpectedQuestionCountForDifficulty(difficulty) {
-    const cfg = QUIZ_DIFFICULTY[difficulty] || QUIZ_DIFFICULTY.easy;
-    return cfg.questionCount;
+    return getQuizQuestionCount(quizCategory || currentCategory, difficulty);
 }
 
 function getNextDifficultyAfterCompletion(currentDifficulty, stageScore, questionCount) {
     // Spec:
-    // Easy passed with exactly 5/5 correct -> starts Normal
-    // Normal passed with exactly 10/10 correct -> starts Hard
+    // A perfect score for the current stage starts the next difficulty.
     // Even 1 wrong answer -> ends quiz (no advance)
     const expected = questionCount || getExpectedQuestionCountForDifficulty(currentDifficulty);
 
@@ -6567,9 +6679,16 @@ function finishQuiz(){
         quizStageTransitioning = true;
 
         quizStageState.stageIndex = nextStageIndex;
+        quizStageState.stageResults.push({
+            difficulty: quizDifficulty,
+            score: stageScore,
+            total: stageTotal
+        });
         quizStageState.stageScore = 0;
 
         quizDifficulty = quizStageState.stageConfig[quizStageState.stageIndex].difficulty;
+
+        applyQuizDifficultyUI();
 
         quizAnswered = false;
         quizComplete = false;
@@ -6622,42 +6741,60 @@ function finishQuiz(){
     stopQuizVoiceInteraction();
     quizComplete = true;
     quizProgressFillEl.style.width = "100%";
-    quizQuestionEl.textContent = selectedLanguage === 'tl' ? "Tapos na ang Pagsusulit!" : "Quiz Complete!";
-    questionNumberEl.textContent = selectedLanguage === 'tl'
-        ? `Pinal na Iskor: ${quizScore} / ${sessionTotal}`
-        : `Final Score: ${quizScore} / ${sessionTotal}`;
+    if (quizStageState && currentStageIndex >= 0) {
+        quizStageState.stageResults.push({
+            difficulty: quizDifficulty,
+            score: stageScore,
+            total: stageTotal
+        });
+    }
 
     // Calculate accuracy for adaptive learning
     const accuracy = calculateQuizAccuracy(quizScore, sessionTotal);
-    const shouldAdvanceToNextLessonAfterQuiz = shouldAdvanceToNextLesson(accuracy);
+    const isPerfectQuiz = sessionTotal > 0 && quizScore === sessionTotal;
 
     let finishMessage;
     const didNotAdvance = stageScore < stageTotal && quizDifficulty !== 'hard';
-    
-    if (didNotAdvance) {
+
+    if (isPerfectQuiz) {
+        finishMessage = selectedLanguage === 'tl'
+            ? "Maligayang pagbati! Perpekto ang iyong iskor!"
+            : "Congratulations! You got a perfect score!";
+    } else if (didNotAdvance) {
         finishMessage = selectedLanguage === 'tl'
             ? `Kailangan mong makuha ang lahat ng tama (${stageScore}/${stageTotal}) para makapunta sa susunod na level.`
             : `You need a perfect score (${stageScore}/${stageTotal}) to unlock the next level.`;
-    } else if (shouldAdvanceToNextLessonAfterQuiz) {
-        // Scores below 80% move the student to the next lesson.
-        finishMessage = selectedLanguage === 'tl'
-            ? `${Math.round(accuracy)}% accuracy. Pupunta tayo sa susunod na aralin...`
-            : `${Math.round(accuracy)}% accuracy. Moving to the next lesson...`;
     } else {
         finishMessage = selectedLanguage === 'tl'
-            ? `${Math.round(accuracy)}% accuracy. Mananatili tayo sa araling ito.`
-            : `${Math.round(accuracy)}% accuracy. Staying in this lesson.`;
+            ? `Natapos ang pagsusulit nang may ${Math.round(accuracy)}% katumpakan.`
+            : `Quiz complete with ${Math.round(accuracy)}% accuracy.`;
     }
 
-    const noticeDuration = didNotAdvance ? 10000 : 2800;
-    showNotification(finishMessage, noticeDuration);
-    if (didNotAdvance) {
-        speakText(finishMessage);
-    } else if (shouldAdvanceToNextLessonAfterQuiz) {
-        speakText(selectedLanguage === 'tl' 
-            ? `Pupunta tayo sa susunod na aralin.` 
-            : `Moving to the next lesson.`);
-    }
+    quizCompletionHeading.textContent = isPerfectQuiz
+        ? (selectedLanguage === 'tl' ? "🎉 Maligayang pagbati!" : "🎉 Congratulations!")
+        : (selectedLanguage === 'tl' ? "Tapos na ang Pagsusulit!" : "Quiz Complete!");
+    quizCompletionFeedback.textContent = finishMessage;
+    quizCompletionScore.textContent = selectedLanguage === 'tl'
+        ? `Kabuuang iskor: ${quizScore} / ${sessionTotal}`
+        : `Total score: ${quizScore} / ${sessionTotal}`;
+    quizCompletionStageScores.replaceChildren();
+    (quizStageState?.stageResults || []).forEach(result => {
+        const row = document.createElement("li");
+        const level = result.difficulty === "medium"
+            ? (selectedLanguage === 'tl' ? "Normal" : "Normal")
+            : result.difficulty.charAt(0).toUpperCase() + result.difficulty.slice(1);
+        row.textContent = `${level}: ${result.score} / ${result.total}`;
+        quizCompletionStageScores.appendChild(row);
+    });
+    quizCompletionMenuBtn.textContent = selectedLanguage === 'tl'
+        ? "Bumalik sa Lesson Menu"
+        : "Back to Lesson Menu";
+    quizCompletionNextBtn.textContent = selectedLanguage === 'tl'
+        ? "Magpatuloy sa Susunod na Aralin"
+        : "Proceed to Next Lesson";
+    setQuizCompletionView(true);
+    showNotification(finishMessage, 5000);
+    if (isPerfectQuiz) startQuizConfetti();
 
     currentScoreEl.textContent = String(quizScore);
     updateQuizStarDisplay(true, 0);
@@ -6671,26 +6808,127 @@ function finishQuiz(){
 
     // Reset stored difficulty
     localStorage.setItem('quizDifficulty', 'easy');
-
-    setTimeout(() => {
-        if (autoProgressToNextLesson(quizCategory, quizLessonIndex, accuracy)) {
-            // Successfully progressed to next lesson
-            const nextLessonTitle = translateLessonTitle(currentCategory);
-            
-            const progressMessage = selectedLanguage === 'tl'
-                ? `Abot-kamay na ang bagong aralin: ${nextLessonTitle}!`
-                : `Now learning: ${nextLessonTitle}!`;
-            showNotification(progressMessage, 2000);
-            
-            loadLesson();
-            showScreen(lessonScreen);
-        } else {
-            // No adaptive progression - return to menu
-            showScreen(menuScreen);
-        }
-    }, noticeDuration);
 }
 
+function setQuizCompletionView(isVisible) {
+    quizCompletionPanel.hidden = !isVisible;
+    quizProgressContainer.hidden = isVisible;
+    quizScoreContainer.hidden = isVisible;
+    questionNumberEl.hidden = isVisible;
+    quizQuestionImageEl.hidden = isVisible || !quizQuestions[currentQuizIndex]?.image;
+    quizQuestionEl.hidden = isVisible;
+    quizVoiceControls.hidden = isVisible;
+    document.getElementById("quizVoiceStatus").hidden = isVisible;
+    document.getElementById("quizAnswerGrid").hidden = isVisible;
+}
+
+function startQuizConfetti() {
+    const canvas = quizConfettiCanvas;
+    stopQuizConfetti();
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const pixelRatio = window.devicePixelRatio || 1;
+    const context = canvas.getContext("2d");
+    const colors = ["#ff595e", "#ffca3a", "#8ac926", "#1982c4", "#6a4c93", "#ff8fab"];
+    const particles = [];
+    let frameCount = 0;
+
+    canvas.width = Math.floor(window.innerWidth * pixelRatio);
+    canvas.height = Math.floor(window.innerHeight * pixelRatio);
+    canvas.style.width = `${window.innerWidth}px`;
+    canvas.style.height = `${window.innerHeight}px`;
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    canvas.hidden = false;
+
+    const initialParticleCount = reducedMotion ? 18 : 60;
+    for (let index = 0; index < initialParticleCount; index++) {
+        particles.push({
+            x: Math.random() * window.innerWidth,
+            y: Math.random() * window.innerHeight,
+            width: 5 + Math.random() * 7,
+            height: 8 + Math.random() * 9,
+            speed: reducedMotion ? 0.7 + Math.random() * 0.8 : 2 + Math.random() * 4,
+            drift: (Math.random() - 0.5) * (reducedMotion ? 0.3 : 2),
+            rotation: Math.random() * Math.PI,
+            spin: (Math.random() - 0.5) * (reducedMotion ? 0.02 : 0.12),
+            color: colors[Math.floor(Math.random() * colors.length)]
+        });
+    }
+
+    const drawFrame = () => {
+        frameCount++;
+        context.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        const particleCount = reducedMotion
+            ? (frameCount % 12 === 0 ? 1 : 0)
+            : 3;
+        for (let index = 0; index < particleCount; index++) {
+            particles.push({
+                x: Math.random() * window.innerWidth,
+                y: -12,
+                width: 5 + Math.random() * 7,
+                height: 8 + Math.random() * 9,
+                speed: reducedMotion ? 0.7 + Math.random() * 0.8 : 2 + Math.random() * 4,
+                drift: (Math.random() - 0.5) * (reducedMotion ? 0.3 : 2),
+                rotation: Math.random() * Math.PI,
+                spin: (Math.random() - 0.5) * (reducedMotion ? 0.02 : 0.12),
+                color: colors[Math.floor(Math.random() * colors.length)]
+            });
+        }
+
+        particles.forEach(particle => {
+            particle.y += particle.speed;
+            particle.x += particle.drift;
+            particle.rotation += particle.spin;
+            context.save();
+            context.translate(particle.x, particle.y);
+            context.rotate(particle.rotation);
+            context.fillStyle = particle.color;
+            context.fillRect(-particle.width / 2, -particle.height / 2, particle.width, particle.height);
+            context.restore();
+        });
+
+        for (let index = particles.length - 1; index >= 0; index--) {
+            if (particles[index].y > window.innerHeight + 20) particles.splice(index, 1);
+        }
+        canvas.dataset.animationFrame = String(window.requestAnimationFrame(drawFrame));
+    };
+
+    canvas.dataset.animationFrame = String(window.requestAnimationFrame(drawFrame));
+}
+
+function stopQuizConfetti() {
+    const canvas = quizConfettiCanvas;
+    if (!canvas) return;
+    const animationFrame = Number(canvas.dataset.animationFrame);
+    if (animationFrame) window.cancelAnimationFrame(animationFrame);
+    canvas.dataset.animationFrame = "";
+    canvas.hidden = true;
+    const context = canvas.getContext("2d");
+    context.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+if (quizCompletionMenuBtn) {
+    quizCompletionMenuBtn.addEventListener("click", () => {
+        stopQuizConfetti();
+        showScreen(menuScreen);
+        showNotification(selectedLanguage === 'tl'
+            ? "Bumalik ka sa lesson menu."
+            : "Back at the lesson menu.");
+    });
+}
+
+if (quizCompletionNextBtn) {
+    quizCompletionNextBtn.addEventListener("click", () => {
+        stopQuizConfetti();
+        const nextPath = getNextLessonPath(quizCategory, quizLessonIndex);
+        currentCategory = nextPath.category;
+        currentLesson = nextPath.lessonIndex;
+        loadLesson();
+        showScreen(lessonScreen);
+        showNotification(selectedLanguage === 'tl'
+            ? `Susunod na aralin: ${translateLessonTitle(currentCategory)}`
+            : `Next lesson: ${translateLessonTitle(currentCategory)}`);
+    });
+}
 
 
 
