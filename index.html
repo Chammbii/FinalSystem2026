@@ -1049,6 +1049,29 @@
 
         </h2>
 
+        <!-- Difficulty -->
+
+        <div class="quiz-difficulty">
+            <div class="quiz-difficulty-label">Difficulty</div>
+            <div class="quiz-difficulty-buttons" role="group" aria-label="Quiz difficulty">
+                <button type="button" class="difficulty-btn" data-difficulty="easy" disabled>Easy</button>
+                <button type="button" class="difficulty-btn" data-difficulty="medium" disabled>Normal</button>
+                <button type="button" class="difficulty-btn" data-difficulty="hard" disabled>Hard</button>
+
+
+            </div>
+        </div>
+
+        <div id="quizUnlockBox" class="quiz-unlock-box" role="status" aria-live="polite">
+            <div class="quiz-unlock-title">Unlock Next Level</div>
+            <p id="quizUnlockRule" class="quiz-unlock-rule">
+                Get all 5 Easy answers correct to unlock Medium.
+            </p>
+            <p id="quizUnlockProgress" class="quiz-unlock-progress">
+                Progress: 0 / 5 correct
+            </p>
+        </div>
+
         <!-- Score -->
 
         <div class="quiz-score">
