@@ -351,8 +351,14 @@ const lessonHomeConfirmTitle = document.getElementById("lessonHomeConfirmTitle")
 const lessonHomeConfirmMessage = document.getElementById("lessonHomeConfirmMessage");
 const lessonHomeCancelBtn = document.getElementById("lessonHomeCancelBtn");
 const lessonHomeConfirmBtn = document.getElementById("lessonHomeConfirmBtn");
+const lessonFlowPromptModal = document.getElementById("lessonFlowPromptModal");
+const lessonFlowPromptTitle = document.getElementById("lessonFlowPromptTitle");
+const lessonFlowPromptMessage = document.getElementById("lessonFlowPromptMessage");
+const lessonFlowPromptSecondaryBtn = document.getElementById("lessonFlowPromptSecondaryBtn");
+const lessonFlowPromptPrimaryBtn = document.getElementById("lessonFlowPromptPrimaryBtn");
 let lessonHomeConfirmationTrigger = null;
 let lessonHomeConfirmationAction = null;
+let lessonCompletionRecorded = false;
 
 
 let selectedAvatar = null;
@@ -5096,6 +5102,7 @@ function openLesson(category){
 function openLessonContinue(category){
     currentCategory = category;
     currentLesson = 0;
+    lessonCompletionRecorded = false;
     lessonVoiceRewardedKeys = null;
     // store category and language selection
     loadLesson();
@@ -5955,24 +5962,53 @@ function finishLesson() {
 
     speechSynthesis.cancel();
 
-    saveLessonProgress();
-
-    saveStudentProgress();
-
-    updateCurrentStudentRecord();
-
     quizCategory = currentCategory;
+    if (!lessonCompletionRecorded) {
+        saveLessonProgress();
+        saveStudentProgress();
+        updateCurrentStudentRecord();
+        lessonCompletionRecorded = true;
+    }
 
-    setTimeout(() => {
+    if (!lessonFlowPromptModal) {
+        console.error("The quiz readiness prompt is not available.");
+        showNotification("Unable to open the quiz prompt. Please refresh the page.");
+        return;
+    }
 
-        recordStudentActivity(`Finished ${getActivityLessonName(quizCategory)} lesson and opened its quiz`);
-        showScreen(quizScreen);
-
-        initializeQuiz();
-
-    },400);
+    lessonFlowPromptTitle.textContent = selectedLanguage === "tl"
+        ? "Handa ka na ba sa pagsusulit?"
+        : "Are you ready for the quiz?";
+    lessonFlowPromptMessage.textContent = selectedLanguage === "tl"
+        ? `Natapos mo na ang aralin sa ${translateLessonTitle(quizCategory)}. Maaari kang magsimulang sumagot o balikan muna ang aralin.`
+        : `You finished ${translateLessonTitle(quizCategory)}. Start the quiz now, or review the lesson first.`;
+    lessonFlowPromptSecondaryBtn.textContent = selectedLanguage === "tl"
+        ? "Balikan ang Aralin"
+        : "Review Lesson";
+    lessonFlowPromptPrimaryBtn.textContent = selectedLanguage === "tl"
+        ? "Handa na! Simulan ang Pagsusulit"
+        : "I'm Ready! Start Quiz";
+    lessonFlowPromptModal.hidden = false;
+    lessonFlowPromptSecondaryBtn.focus();
 
 }
+
+lessonFlowPromptSecondaryBtn?.addEventListener("click", () => {
+    lessonFlowPromptModal.hidden = true;
+    speechSynthesis.cancel();
+    stopLessonVoiceListening();
+    stopUploadedAudio();
+    currentLesson = 0;
+    loadLesson();
+    showScreen(lessonScreen);
+});
+
+lessonFlowPromptPrimaryBtn?.addEventListener("click", () => {
+    lessonFlowPromptModal.hidden = true;
+    recordStudentActivity(`Finished ${getActivityLessonName(quizCategory)} lesson and opened its quiz`);
+    showScreen(quizScreen);
+    initializeQuiz();
+});
 
 // -------------------------------
 // Replace Next Button
@@ -6922,6 +6958,7 @@ if (quizCompletionNextBtn) {
         const nextPath = getNextLessonPath(quizCategory, quizLessonIndex);
         currentCategory = nextPath.category;
         currentLesson = nextPath.lessonIndex;
+        lessonCompletionRecorded = false;
         loadLesson();
         showScreen(lessonScreen);
         showNotification(selectedLanguage === 'tl'
