@@ -5970,7 +5970,8 @@ function finishLesson() {
         lessonCompletionRecorded = true;
     }
 
-    if (!lessonFlowPromptModal) {
+    if (!lessonFlowPromptModal || !lessonFlowPromptTitle || !lessonFlowPromptMessage
+        || !lessonFlowPromptSecondaryBtn || !lessonFlowPromptPrimaryBtn) {
         console.error("The quiz readiness prompt is not available.");
         showNotification("Unable to open the quiz prompt. Please refresh the page.");
         return;
